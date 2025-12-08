@@ -2,90 +2,197 @@ pipeline {
     agent any
     
     tools {
-        nodejs 'nodejs'
+        nodejs 'nodejs'  // Verifica que este nombre coincida en Jenkins
     }
     
     environment {
+        // Usa tu IP correcta
         SONAR_HOST_URL = 'http://192.168.1.149:9000'
+        // Nombre del proyecto debe ser único
+        SONAR_PROJECT_KEY = 'app-vulnerable-' + env.BUILD_NUMBER
         NODE_ENV = 'test'
     }
     
     stages {
         stage('Checkout Code') {
             steps {
+                // Tu repo es público, no necesita credenciales
                 checkout([
                     $class: 'GitSCM',
                     branches: [[name: '*/main']],
                     userRemoteConfigs: [[
-                        url: 'https://github.com/wachhinn/app-vulnerable.git',
-                        credentialsId: 'github-token'
+                        url: 'https://github.com/wachhinn/app-vulnerable.git'
+                        // ELIMINADO: credentialsId - no necesario para repo público
                     ]]
                 ])
                 
                 sh '''
-                    echo "Repositorio: $(git config --get remote.origin.url)"
+                    echo "=== INFORMACIÓN DEL REPOSITORIO ==="
+                    echo "URL: https://github.com/wachhinn/app-vulnerable.git"
                     echo "Branch: $(git branch --show-current)"
-                    echo "Commit: $(git log --oneline -1)"
+                    echo "Último commit: $(git log --oneline -1)"
+                    echo "Archivos en repo:"
+                    ls -la
                 '''
+            }
+        }
+        
+        stage('Verificar Proyecto') {
+            steps {
+                script {
+                    echo "=== VERIFICANDO ESTRUCTURA ==="
+                    sh '''
+                        echo "Contenido actual:"
+                        ls -la
+                        echo ""
+                        echo "package.json existe?: $(if [ -f package.json ]; then echo "SÍ"; else echo "NO"; fi)"
+                    '''
+                    
+                    // Si no hay package.json, crear uno básico
+                    if (!fileExists('package.json')) {
+                        echo "⚠️  No hay package.json. Creando uno básico..."
+                        sh '''
+                            npm init -y
+                            npm install express --save
+                            echo "// App básica vulnerable" > app.js
+                            echo "const express = require('express');" >> app.js
+                            echo "const app = express();" >> app.js
+                            echo "app.get('/', (req, res) => {" >> app.js
+                            echo "  res.send('App Vulnerable para pruebas');" >> app.js
+                            echo "});" >> app.js
+                            echo "app.listen(3000, () => console.log('Servidor en puerto 3000'));" >> app.js
+                        '''
+                    }
+                }
             }
         }
         
         stage('Install Dependencies') {
             steps {
-                script {
-                    if (fileExists('package.json')) {
-                        sh 'npm install'
-                    } else {
-                        echo 'No package.json found'
-                    }
-                }
+                sh '''
+                    echo "=== INSTALANDO DEPENDENCIAS ==="
+                    if [ -f package.json ]; then
+                        npm install
+                        echo "Dependencias instaladas"
+                    else
+                        echo "No hay package.json para instalar"
+                    fi
+                '''
             }
         }
         
         stage('SonarQube Analysis') {
             steps {
-                withSonarQubeEnv('SonarQube') {
-                    sh '''
-                        sonar-scanner \
-                        -Dsonar.projectKey=app-vulnerable \
-                        -Dsonar.projectName="App Vulnerable" \
-                        -Dsonar.sources=. \
-                        -Dsonar.exclusions=node_modules/**,**/*.min.js \
-                        -Dsonar.host.url=${SONAR_HOST_URL}
-                    '''
+                script {
+                    echo "=== ANÁLISIS SONARQUBE ==="
+                    
+                    // Verificar que SonarQube esté accesible
+                    sh """
+                        echo "Probando conexión a SonarQube..."
+                        curl -s ${SONAR_HOST_URL}/api/system/status || echo "⚠️  No se pudo conectar a SonarQube"
+                    """
+                    
+                    // Configurar análisis SonarQube
+                    withSonarQubeEnv('SonarQube') {
+                        sh """
+                            echo "Ejecutando sonar-scanner..."
+                            sonar-scanner \
+                            -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                            -Dsonar.projectName="App Vulnerable Build ${env.BUILD_NUMBER}" \
+                            -Dsonar.projectVersion=1.0 \
+                            -Dsonar.sources=. \
+                            -Dsonar.sourceEncoding=UTF-8 \
+                            -Dsonar.exclusions=node_modules/**,**/*.min.js,coverage/** \
+                            -Dsonar.tests=. \
+                            -Dsonar.test.inclusions=**/*.test.js,**/*.spec.js \
+                            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
+                            -Dsonar.verbose=true
+                        """
+                    }
                 }
             }
         }
         
-        stage('Quality Gate') {
+        stage('Quality Gate Check') {
             steps {
-                timeout(time: 10, unit: 'MINUTES') {
+                echo "=== VERIFICANDO QUALITY GATE ==="
+                timeout(time: 5, unit: 'MINUTES') {
+                    // abortPipeline: false para que continúe aunque falle
                     waitForQualityGate abortPipeline: false
                 }
             }
         }
         
-        stage('Run Tests') {
+        stage('Security Scan') {
             steps {
-                script {
-                    if (fileExists('package.json')) {
-                        sh 'npm test || true'
-                    }
-                }
+                sh '''
+                    echo "=== ESCANEO DE SEGURIDAD ==="
+                    echo "1. Verificando vulnerabilidades con npm audit..."
+                    npm audit --json > npm-audit.json 2>/dev/null || echo "npm audit no disponible"
+                    
+                    echo "2. Buscando credenciales hardcodeadas..."
+                    grep -r "password\|secret\|key\|token" --include="*.js" --include="*.json" . || echo "No se encontraron credenciales obvias"
+                    
+                    echo "3. Archivos de configuración:"
+                    ls -la *.json *.js 2>/dev/null || true
+                '''
+            }
+        }
+        
+        stage('Build & Test') {
+            steps {
+                sh '''
+                    echo "=== BUILD Y TESTS ==="
+                    echo "Ejecutando tests si existen..."
+                    
+                    # Intentar ejecutar tests
+                    if [ -f package.json ] && grep -q '"test"' package.json; then
+                        npm test || echo "Tests fallaron o no existen"
+                    else
+                        echo "No hay scripts de test definidos"
+                    fi
+                    
+                    # Intentar build si existe
+                    if [ -f package.json ] && grep -q '"build"' package.json; then
+                        npm run build || echo "Build falló o no existe"
+                    fi
+                '''
             }
         }
     }
     
     post {
         always {
-            echo "Pipeline ${currentBuild.currentResult}"
+            echo "=== RESUMEN DEL PIPELINE ==="
+            echo "Build Number: ${env.BUILD_NUMBER}"
+            echo "Resultado: ${currentBuild.currentResult}"
+            echo "Duración: ${currentBuild.durationString}"
+            
+            // Archivar reportes generados
+            archiveArtifacts artifacts: '*.json,*.html', fingerprint: true
+            
+            // Limpiar workspace
             cleanWs()
+            
+            echo "✅ Pipeline finalizado"
         }
         success {
-            echo '✅ Pipeline ejecutado exitosamente!'
+            echo "🎉 ¡Pipeline exitoso!"
+            // Aquí podrías agregar notificaciones
         }
         failure {
-            echo '❌ Pipeline falló!'
+            echo "❌ Pipeline falló"
+            // Mostrar posibles causas
+            sh '''
+                echo "Posibles causas:"
+                echo "1. SonarQube no accesible"
+                echo "2. sonar-scanner no instalado"
+                echo "3. Error en dependencias"
+                echo "4. Quality Gate falló"
+            '''
+        }
+        unstable {
+            echo "⚠️  Quality Gate falló - Revisar SonarQube"
         }
     }
 }
