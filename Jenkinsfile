@@ -2,27 +2,23 @@ pipeline {
     agent any
     
     tools {
-        nodejs 'nodejs'  // Verifica que este nombre coincida en Jenkins
+        nodejs 'nodejs'
     }
     
     environment {
-        // Usa tu IP correcta
         SONAR_HOST_URL = 'http://192.168.1.149:9000'
-        // Nombre del proyecto debe ser único
-        SONAR_PROJECT_KEY = 'app-vulnerable-' + env.BUILD_NUMBER
         NODE_ENV = 'test'
     }
     
     stages {
         stage('Checkout Code') {
             steps {
-                // Tu repo es público, no necesita credenciales
                 checkout([
                     $class: 'GitSCM',
                     branches: [[name: '*/main']],
                     userRemoteConfigs: [[
-                        url: 'https://github.com/wachhinn/app-vulnerable.git'
-                        // ELIMINADO: credentialsId - no necesario para repo público
+                        url: 'https://github.com/wachhinn/app-vulnerable.git',
+                        credentialsId: 'github-token'
                     ]]
                 ])
                 
@@ -97,7 +93,7 @@ pipeline {
                         sh """
                             echo "Ejecutando sonar-scanner..."
                             sonar-scanner \
-                            -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                            -Dsonar.projectKey=app-vulnerable-${env.BUILD_NUMBER} \
                             -Dsonar.projectName="App Vulnerable Build ${env.BUILD_NUMBER}" \
                             -Dsonar.projectVersion=1.0 \
                             -Dsonar.sources=. \
@@ -105,8 +101,7 @@ pipeline {
                             -Dsonar.exclusions=node_modules/**,**/*.min.js,coverage/** \
                             -Dsonar.tests=. \
                             -Dsonar.test.inclusions=**/*.test.js,**/*.spec.js \
-                            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
-                            -Dsonar.verbose=true
+                            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
                         """
                     }
                 }
@@ -131,7 +126,8 @@ pipeline {
                     npm audit --json > npm-audit.json 2>/dev/null || echo "npm audit no disponible"
                     
                     echo "2. Buscando credenciales hardcodeadas..."
-                    grep -r "password\|secret\|key\|token" --include="*.js" --include="*.json" . || echo "No se encontraron credenciales obvias"
+                    # CORRECCIÓN: Escapar las barras verticales
+                    grep -r "password\\|secret\\|key\\|token" --include="*.js" --include="*.json" . 2>/dev/null || echo "No se encontraron credenciales obvias"
                     
                     echo "3. Archivos de configuración:"
                     ls -la *.json *.js 2>/dev/null || true
@@ -178,11 +174,9 @@ pipeline {
         }
         success {
             echo "🎉 ¡Pipeline exitoso!"
-            // Aquí podrías agregar notificaciones
         }
         failure {
             echo "❌ Pipeline falló"
-            // Mostrar posibles causas
             sh '''
                 echo "Posibles causas:"
                 echo "1. SonarQube no accesible"
