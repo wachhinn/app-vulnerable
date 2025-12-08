@@ -28,7 +28,7 @@ pipeline {
                 sh '''
                     echo "=== CONFIGURANDO PROYECTO ==="
                     
-                    # Verificar NodeJS
+                    // Verificar NodeJS
                     if command -v node > /dev/null; then
                         echo "✅ NodeJS: $(node --version)"
                         echo "✅ NPM: $(npm --version)"
@@ -38,7 +38,7 @@ pipeline {
                         sudo apt-get install -y nodejs
                     fi
                     
-                    # Instalar dependencias
+                    // Instalar dependencias
                     if [ -f package.json ]; then
                         npm install || echo "⚠️  npm install continuó con errores"
                     else
@@ -93,17 +93,17 @@ pipeline {
                     echo "=== DESPLIEGUE EN VIVO ==="
                     echo "🚀 Iniciando página web vulnerable..."
                     
-                    # Iniciar servidor en background
+                    // Iniciar servidor en background
                     nohup npm start > server.log 2>&1 &
                     SERVER_PID=$!
                     echo "PID del servidor: $SERVER_PID"
                     echo $SERVER_PID > server.pid
                     
-                    # Esperar que inicie
+                    // Esperar que inicie
                     echo "⏳ Esperando 15 segundos para que el servidor inicie..."
                     sleep 15
                     
-                    # Verificar que está funcionando
+                    // Verificar que está funcionando
                     echo "🔄 Verificando estado del servidor..."
                     if curl -s -f "http://localhost:${APP_PORT}/health" > /dev/null; then
                         echo "✅ Página web FUNCIONANDO en: http://localhost:${APP_PORT}"
@@ -144,7 +144,7 @@ pipeline {
                         echo "🔍 SonarQube detectará estas 7 vulnerabilidades"
                         echo "========================================"
                         
-                        # Crear archivo con URLs para referencia
+                        // Crear archivo con URLs para referencia
                         cat > demo-urls.txt << "URLS"
 🌐 PÁGINA WEB VULNERABLE - PROYECTO SEMESTRAL
 ========================================
@@ -198,19 +198,19 @@ URLS
                         echo "❌ Health check falló. El servidor podría no haber iniciado correctamente."
                     fi
                     
-                    # Mantener activo para demostración (5 minutos)
+                    // Mantener activo para demostración (5 minutos)
                     echo ""
                     echo "⏰ Manteniendo servidor activo por 5 minutos para demostración en vivo..."
                     echo "   (El servidor se detendrá automáticamente después)"
                     
-                    # Mostrar logs en tiempo real (solo últimos 10 líneas)
+                    // Mostrar logs en tiempo real (solo últimos 10 líneas)
                     echo ""
                     echo "📝 Últimos logs del servidor:"
                     tail -10 server.log
                     
-                    sleep 300  # 5 minutos para demostración
+                    sleep 300  // 5 minutos para demostración
                     
-                    # Detener servidor
+                    // Detener servidor
                     echo "🛑 Deteniendo servidor después de demostración..."
                     kill $SERVER_PID 2>/dev/null || true
                     echo "✅ Servidor detenido"
@@ -223,23 +223,23 @@ URLS
                 sh '''
                     echo "=== GENERANDO REPORTE DE SEGURIDAD ==="
                     
-                    # Buscar vulnerabilidades conocidas
+                    // Buscar vulnerabilidades conocidas
                     echo "🔎 Buscando vulnerabilidades en código..."
                     
-                    # 1. Buscar XSS patterns
+                    // 1. Buscar XSS patterns
                     echo "1. Buscando patrones XSS..."
                     grep -r "innerHTML\\|document.write\\|eval(" --include="*.js" --include="*.html" . 2>/dev/null > xss-findings.txt || echo "No se encontraron patrones XSS"
                     
-                    # 2. Buscar credenciales hardcodeadas
+                    // 2. Buscar credenciales hardcodeadas
                     echo "2. Buscando credenciales hardcodeadas..."
                     grep -r -i "password\\|secret\\|key\\|token\\|api_key" --include="*.js" --include="*.html" --include="*.json" . 2>/dev/null | grep -v node_modules > credentials-findings.txt || echo "No se encontraron credenciales"
                     
-                    # 3. Contar archivos vulnerables
+                    // 3. Contar archivos vulnerables
                     echo "3. Contando archivos vulnerables..."
                     TOTAL_FILES=$(find . -name "*.js" -o -name "*.html" -o -name "*.json" | grep -v node_modules | wc -l)
                     VULN_FILES=$(find . -name "*.js" -o -name "*.html" -o -name "*.json" | grep -v node_modules | xargs grep -l "password\\|secret\\|innerHTML\\|document.write" 2>/dev/null | wc -l)
                     
-                    # Crear reporte
+                    // Crear reporte
                     cat > security-report-${BUILD_NUMBER}.md << "REPORT"
 # 📊 REPORTE DE ANÁLISIS DE SEGURIDAD
 ## Sistema Bancario Vulnerable v2.0
@@ -273,18 +273,18 @@ URLS
 ### 📋 HALLazgos DE ANÁLISIS AUTOMÁTICO
 #### XSS Detectado:
 $(if [ -f xss-findings.txt ] && [ -s xss-findings.txt ]; then
-  echo "```"
+  echo "\`\`\`"
   cat xss-findings.txt | head -10
-  echo "```"
+  echo "\`\`\`"
 else
   echo "No se encontraron patrones XSS obvios"
 fi)
 
 #### Credenciales Detectadas:
 $(if [ -f credentials-findings.txt ] && [ -s credentials-findings.txt ]; then
-  echo "```"
+  echo "\`\`\`"
   cat credentials-findings.txt | head -10
-  echo "```"
+  echo "\`\`\`"
 else
   echo "No se encontraron credenciales hardcodeadas obvias"
 fi)
@@ -341,17 +341,17 @@ REPORT
             echo "   • credentials-findings.txt"
             echo "========================================"
             
-            # Archivar todos los reportes
+            // Archivar todos los reportes
             archiveArtifacts artifacts: '*.md,*.txt,server.log', fingerprint: true
             
-            # Limpiar procesos
+            // Limpiar procesos
             sh '''
                 [ -f server.pid ] && kill $(cat server.pid) 2>/dev/null || true
                 pkill -f "node server.js" 2>/dev/null || true
                 sleep 2
             '''
             
-            # Limpiar workspace
+            // Limpiar workspace
             cleanWs()
         }
         success {
