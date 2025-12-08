@@ -1,8 +1,9 @@
 pipeline {
-    agent any  // Esto crea el contexto 'node' automáticamente
+    agent any
     
     environment {
         SONAR_HOST_URL = 'http://192.168.1.149:9000'
+        SONAR_PROJECT_KEY = 'app-vulnerable-${BUILD_NUMBER}'
     }
     
     stages {
@@ -16,85 +17,84 @@ pipeline {
                         credentialsId: 'github-token'
                     ]]
                 ])
-                sh 'echo "Repositorio clonado exitosamente"'
+                sh 'echo "✅ Repositorio clonado"'
             }
         }
         
-        stage('Setup Environment') {
+        stage('Setup Project') {
             steps {
                 sh '''
-                    echo "=== CONFIGURANDO ENTORNO ==="
-                    echo "Directorio de trabajo: $(pwd)"
-                    echo "Usuario Jenkins: $(whoami)"
+                    echo "=== CONFIGURANDO PROYECTO ==="
                     
                     # Verificar NodeJS
-                    if command -v node > /dev/null 2>&1; then
-                        echo "✅ NodeJS instalado: $(node --version)"
-                        echo "✅ NPM instalado: $(npm --version)"
+                    if command -v node > /dev/null; then
+                        echo "✅ NodeJS: $(node --version)"
+                        echo "✅ NPM: $(npm --version)"
                     else
-                        echo "⚠️  NodeJS no encontrado. Continuando sin análisis avanzado."
-                        # Crear estructura básica sin npm
-                        mkdir -p src
-                        echo "console.log('Hello Vulnerable App');" > src/index.js
+                        echo "Instalando NodeJS..."
+                        curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+                        sudo apt-get install -y nodejs
                     fi
                     
-                    # Crear estructura del proyecto si no existe
-                    if [ ! -f package.json ]; then
-                        echo "Creando estructura básica..."
-                        cat > package.json << "EOL"
-{
-  "name": "app-vulnerable",
-  "version": "1.0.0",
-  "main": "src/index.js",
-  "scripts": {
-    "start": "node src/index.js"
-  }
-}
+                    # Instalar dependencias
+                    if [ -f package.json ]; then
+                        npm install || echo "⚠️  npm install continuó con errores"
+                    else
+                        echo "{}" > package.json
+                        npm install express --save
+                    fi
+                    
+                    # Asegurar app.js existe
+                    if [ ! -f app.js ]; then
+                        cat > app.js << "EOL"
+const express = require('express');
+const app = express();
+app.get('/', (req, res) => {
+    res.send('App Vulnerable para pruebas');
+});
+app.listen(3000, () => {
+    console.log('App running');
+});
 EOL
                     fi
-                    
-                    echo "Contenido actual:"
-                    ls -la
                 '''
             }
         }
         
-        stage('Test Basic Operations') {
+        stage('SonarQube Analysis') {
             steps {
-                sh '''
-                    echo "=== OPERACIONES BÁSICAS ==="
+                script {
+                    echo "=== EJECUTANDO ANÁLISIS SONARQUBE ==="
                     
-                    # Crear archivo de prueba
-                    echo "Hello from Jenkins Build ${BUILD_NUMBER}" > test-output.txt
-                    echo "Test file created successfully"
-                    
-                    # Verificar creación
-                    if [ -f test-output.txt ]; then
-                        echo "✅ Archivo creado:"
-                        cat test-output.txt
-                    else
-                        echo "❌ Error creando archivo"
-                    fi
-                '''
+                    // CORRECCIÓN: Usar el ID correcto 'sonarqube-tokenn'
+                    withSonarQubeEnv('SonarQube') {
+                        sh """
+                            echo "🔍 Iniciando análisis SonarQube..."
+                            echo "Proyecto: ${SONAR_PROJECT_KEY}"
+                            echo "URL: ${SONAR_HOST_URL}"
+                            
+                            sonar-scanner \
+                            -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                            -Dsonar.projectName="App Vulnerable ${BUILD_NUMBER}" \
+                            -Dsonar.sources=. \
+                            -Dsonar.host.url=${SONAR_HOST_URL} \
+                            -Dsonar.exclusions=node_modules/** \
+                            -Dsonar.sourceEncoding=UTF-8
+                            
+                            echo "✅ Análisis enviado a SonarQube"
+                        """
+                    }
+                }
             }
         }
         
-        stage('Verify SonarQube') {
+        stage('Check Analysis') {
             steps {
                 sh '''
-                    echo "=== VERIFICANDO SONARQUBE ==="
-                    echo "URL: ${SONAR_HOST_URL}"
-                    
-                    # Intentar conexión
-                    response=$(curl -s -o /dev/null -w "%{http_code}" ${SONAR_HOST_URL}/api/system/status || echo "ERROR")
-                    
-                    if [ "$response" = "200" ]; then
-                        echo "✅ SonarQube está accesible"
-                        echo "Puedes agregar análisis SonarQube en el siguiente paso"
-                    else
-                        echo "⚠️  SonarQube no responde (código: $response)"
-                        echo "Continúo sin análisis de calidad por ahora"
-                    fi
+                    echo "=== VERIFICANDO ANÁLISIS ==="
+                    echo "Esperando 30 segundos para que SonarQube procese..."
+                    sleep 30
+                    echo "URL del análisis: ${SONAR_HOST_URL}/dashboard?id=${SONAR_PROJECT_KEY}"
                 '''
             }
         }
@@ -103,25 +103,21 @@ EOL
     post {
         always {
             echo "========================================"
-            echo "  PIPELINE COMPLETADO - RESUMEN"
+            echo "BUILD ${BUILD_NUMBER} - ${currentBuild.currentResult}"
+            echo "URL SonarQube: ${SONAR_HOST_URL}/dashboard?id=${SONAR_PROJECT_KEY}"
             echo "========================================"
-            echo "Build Number: ${BUILD_NUMBER}"
-            echo "Result: ${currentBuild.currentResult}"
-            echo "Duration: ${currentBuild.durationString}"
-            echo "========================================"
-            
-            // Limpiar workspace
             cleanWs()
         }
         success {
-            echo "🎉 ¡FELICIDADES! Pipeline ejecutado exitosamente"
-            echo "Próximo paso: Agregar análisis SonarQube"
+            echo "🎉 ¡ANÁLISIS COMPLETADO!"
+            echo "Revisa vulnerabilidades en:"
+            echo "${SONAR_HOST_URL}/dashboard?id=${SONAR_PROJECT_KEY}"
         }
         failure {
-            echo "🔧 Para solucionar:"
-            echo "1. Verificar conexión a internet"
-            echo "2. Instalar NodeJS manualmente: sudo apt install nodejs npm"
-            echo "3. Verificar SonarQube: sudo docker ps | grep sonarqube"
+            echo "🔧 Posibles soluciones:"
+            echo "1. Verificar credenciales SonarQube en Jenkins"
+            echo "2. Verificar que SonarQube esté corriendo"
+            echo "3. Verificar token en SonarQube: admin → My Account → Security"
         }
     }
 }
