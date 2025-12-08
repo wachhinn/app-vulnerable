@@ -28,7 +28,6 @@ pipeline {
                 sh '''
                     echo "=== CONFIGURANDO PROYECTO ==="
                     
-                    // Verificar NodeJS
                     if command -v node > /dev/null; then
                         echo "✅ NodeJS: $(node --version)"
                         echo "✅ NPM: $(npm --version)"
@@ -38,7 +37,6 @@ pipeline {
                         sudo apt-get install -y nodejs
                     fi
                     
-                    // Instalar dependencias
                     if [ -f package.json ]; then
                         npm install || echo "⚠️  npm install continuó con errores"
                     else
@@ -93,17 +91,14 @@ pipeline {
                     echo "=== DESPLIEGUE EN VIVO ==="
                     echo "🚀 Iniciando página web vulnerable..."
                     
-                    // Iniciar servidor en background
                     nohup npm start > server.log 2>&1 &
                     SERVER_PID=$!
                     echo "PID del servidor: $SERVER_PID"
                     echo $SERVER_PID > server.pid
                     
-                    // Esperar que inicie
                     echo "⏳ Esperando 15 segundos para que el servidor inicie..."
                     sleep 15
                     
-                    // Verificar que está funcionando
                     echo "🔄 Verificando estado del servidor..."
                     if curl -s -f "http://localhost:${APP_PORT}/health" > /dev/null; then
                         echo "✅ Página web FUNCIONANDO en: http://localhost:${APP_PORT}"
@@ -118,8 +113,8 @@ pipeline {
                         echo "🔓 VULNERABILIDADES PARA PROBAR:"
                         echo ""
                         echo "1. 🔴 XSS (Cross-Site Scripting):"
-                        echo "   http://localhost:${APP_PORT}/search?q=<script>alert('XSS')</script>"
-                        echo "   http://localhost:${APP_PORT}/search?q=<img src=x onerror=alert('Hacked')>"
+                        echo "   http://localhost:${APP_PORT}/search?q=<script>alert(\"XSS\")</script>"
+                        echo "   http://localhost:${APP_PORT}/search?q=<img src=x onerror=alert(\"Hacked\")>"
                         echo ""
                         echo "2. 🔴 Credenciales Hardcodeadas:"
                         echo "   Usuario: admin | Contraseña: admin123"
@@ -144,8 +139,7 @@ pipeline {
                         echo "🔍 SonarQube detectará estas 7 vulnerabilidades"
                         echo "========================================"
                         
-                        // Crear archivo con URLs para referencia
-                        cat > demo-urls.txt << "URLS"
+                        cat > demo-urls.txt << URLS
 🌐 PÁGINA WEB VULNERABLE - PROYECTO SEMESTRAL
 ========================================
 
@@ -158,8 +152,8 @@ pipeline {
    http://localhost:3000/
 
 2. VULNERABILIDAD XSS:
-   http://localhost:3000/search?q=<script>alert('XSS_DEMO')</script>
-   http://localhost:3000/search?q=<svg/onload=alert('SVG_XSS')>
+   http://localhost:3000/search?q=<script>alert("XSS_DEMO")</script>
+   http://localhost:3000/search?q=<svg/onload=alert("SVG_XSS")>
 
 3. DATOS EXPUESTOS (API sin auth):
    http://localhost:3000/api/users
@@ -169,7 +163,7 @@ pipeline {
 
 5. SQL INJECTION SIMULADA:
    http://localhost:3000/api/user/1
-   http://localhost:3000/api/user/1 OR 1=1
+   http://localhost:${APP_PORT}/api/user/1 OR 1=1
 
 6. HEALTH CHECK:
    http://localhost:3000/health
@@ -198,19 +192,16 @@ URLS
                         echo "❌ Health check falló. El servidor podría no haber iniciado correctamente."
                     fi
                     
-                    // Mantener activo para demostración (5 minutos)
                     echo ""
                     echo "⏰ Manteniendo servidor activo por 5 minutos para demostración en vivo..."
                     echo "   (El servidor se detendrá automáticamente después)"
                     
-                    // Mostrar logs en tiempo real (solo últimos 10 líneas)
                     echo ""
                     echo "📝 Últimos logs del servidor:"
                     tail -10 server.log
                     
-                    sleep 300  // 5 minutos para demostración
+                    sleep 300
                     
-                    // Detener servidor
                     echo "🛑 Deteniendo servidor después de demostración..."
                     kill $SERVER_PID 2>/dev/null || true
                     echo "✅ Servidor detenido"
@@ -223,24 +214,19 @@ URLS
                 sh '''
                     echo "=== GENERANDO REPORTE DE SEGURIDAD ==="
                     
-                    // Buscar vulnerabilidades conocidas
                     echo "🔎 Buscando vulnerabilidades en código..."
                     
-                    // 1. Buscar XSS patterns
                     echo "1. Buscando patrones XSS..."
                     grep -r "innerHTML\\|document.write\\|eval(" --include="*.js" --include="*.html" . 2>/dev/null > xss-findings.txt || echo "No se encontraron patrones XSS"
                     
-                    // 2. Buscar credenciales hardcodeadas
                     echo "2. Buscando credenciales hardcodeadas..."
                     grep -r -i "password\\|secret\\|key\\|token\\|api_key" --include="*.js" --include="*.html" --include="*.json" . 2>/dev/null | grep -v node_modules > credentials-findings.txt || echo "No se encontraron credenciales"
                     
-                    // 3. Contar archivos vulnerables
                     echo "3. Contando archivos vulnerables..."
                     TOTAL_FILES=$(find . -name "*.js" -o -name "*.html" -o -name "*.json" | grep -v node_modules | wc -l)
                     VULN_FILES=$(find . -name "*.js" -o -name "*.html" -o -name "*.json" | grep -v node_modules | xargs grep -l "password\\|secret\\|innerHTML\\|document.write" 2>/dev/null | wc -l)
                     
-                    // Crear reporte
-                    cat > security-report-${BUILD_NUMBER}.md << "REPORT"
+                    cat > security-report-${BUILD_NUMBER}.md << REPORT
 # 📊 REPORTE DE ANÁLISIS DE SEGURIDAD
 ## Sistema Bancario Vulnerable v2.0
 ## Build: ${BUILD_NUMBER}
@@ -252,11 +238,11 @@ URLS
 - **Tiempo de ejecución:** $(echo ${currentBuild.durationString} | sed 's/ y contando//')
 
 ### 🎯 VULNERABILIDADES IMPLEMENTADAS
-1. 🔴 **XSS (Cross-Site Scripting)** - Endpoint `/search`
+1. 🔴 **XSS (Cross-Site Scripting)** - Endpoint /search
 2. 🔴 **Credenciales Hardcodeadas** - JavaScript y API
-3. 🔴 **Exposición de Datos** - `/api/users` sin autenticación
-4. 🔴 **Debug Info Expuesta** - `/debug` endpoint
-5. 🟡 **SQL Injection Simulada** - `/api/user/:id`
+3. 🔴 **Exposición de Datos** - /api/users sin autenticación
+4. 🔴 **Debug Info Expuesta** - /debug endpoint
+5. 🟡 **SQL Injection Simulada** - /api/user/:id
 6. 🟡 **CORS Demasiado Permisivo** - Configuración server.js
 7. 🟡 **Logs con Datos Sensibles** - Console.log con credenciales
 
@@ -270,30 +256,30 @@ URLS
 - **Repositorio GitHub:** https://github.com/wachhinn/app-vulnerable
 - **Jenkins Build:** ${BUILD_URL}
 
-### 📋 HALLazgos DE ANÁLISIS AUTOMÁTICO
+### 📋 HALLAZGOS DE ANÁLISIS AUTOMÁTICO
 #### XSS Detectado:
 $(if [ -f xss-findings.txt ] && [ -s xss-findings.txt ]; then
-  echo "\`\`\`"
+  echo "=== INICIO CÓDIGO XSS ==="
   cat xss-findings.txt | head -10
-  echo "\`\`\`"
+  echo "=== FIN CÓDIGO XSS ==="
 else
   echo "No se encontraron patrones XSS obvios"
 fi)
 
 #### Credenciales Detectadas:
 $(if [ -f credentials-findings.txt ] && [ -s credentials-findings.txt ]; then
-  echo "\`\`\`"
+  echo "=== INICIO CREDENCIALES ==="
   cat credentials-findings.txt | head -10
-  echo "\`\`\`"
+  echo "=== FIN CREDENCIALES ==="
 else
   echo "No se encontraron credenciales hardcodeadas obvias"
 fi)
 
 ### 🚨 RECOMENDACIONES
-1. **Sanitizar todas las entradas de usuario** (especialmente en `/search`)
+1. **Sanitizar todas las entradas de usuario** (especialmente en /search)
 2. **Eliminar credenciales hardcodeadas** y usar variables de entorno
-3. **Implementar autenticación** en endpoints sensibles (`/api/users`)
-4. **Remover endpoint `/debug`** o protegerlo en producción
+3. **Implementar autenticación** en endpoints sensibles (/api/users)
+4. **Remover endpoint /debug** o protegerlo en producción
 5. **Configurar CORS adecuadamente** (orígenes específicos)
 6. **No loguear datos sensibles** en console.log
 
@@ -341,17 +327,14 @@ REPORT
             echo "   • credentials-findings.txt"
             echo "========================================"
             
-            // Archivar todos los reportes
             archiveArtifacts artifacts: '*.md,*.txt,server.log', fingerprint: true
             
-            // Limpiar procesos
             sh '''
                 [ -f server.pid ] && kill $(cat server.pid) 2>/dev/null || true
                 pkill -f "node server.js" 2>/dev/null || true
                 sleep 2
             '''
             
-            // Limpiar workspace
             cleanWs()
         }
         success {
