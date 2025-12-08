@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏦 Sistema Bancario Vulnerable v2.0</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            margin: 20px 0;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .vulnerable {
+            background: rgba(255, 100, 100, 0.2);
+            border-left: 5px solid #ff4757;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 10px;
+        }
+        .vulnerable:hover {
+            background: rgba(255, 100, 100, 0.3);
+            transform: translateY(-2px);
+            transition: all 0.3s ease;
+        }
+        h1, h2, h3 {
+            color: #fff;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        .danger {
+            color: #ff6b6b;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
+        .warning {
+            background: rgba(255, 165, 0, 0.2);
+            border-left: 5px solid #ffa502;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 10px;
+        }
+        input, button {
+            padding: 12px 20px;
+            margin: 8px 0;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        input {
+            width: 70%;
+            background: rgba(255, 255, 255, 0.9);
+        }
+        button {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: scale(1.05);
+        }
+        code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .result-box {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            overflow-x: auto;
+        }
+        .live-demo {
+            background: rgba(46, 204, 113, 0.2);
+            border-left: 5px solid #2ecc71;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 10px;
+        }
+        footer {
+            margin-top: 40px;
+            text-align: center;
+            font-size: 14px;
+            opacity: 0.8;
+        }
+        .vuln-tag {
+            display: inline-block;
+            background: #ff4757;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin: 0 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏦 Sistema Bancario "Seguro" v2.0</h1>
+        <p class="danger">⚠️ ADVERTENCIA: Esta aplicación tiene vulnerabilidades INTENCIONALES para fines educativos del proyecto semestral</p>
+        
+        <div class="live-demo">
+            <h2>🎥 DEMOSTRACIÓN EN VIVO</h2>
+            <p>Esta página se despliega automáticamente con cada cambio en el repositorio.</p>
+            <p><strong>Build actual:</strong> <span id="buildNumber">#?</span></p>
+            <p><strong>Estado:</strong> <span id="status" style="color:#2ecc71;">● EN LÍNEA</span></p>
+        </div>
+        
+        <div class="vulnerable">
+            <h2>🔓 <span class="vuln-tag">CRÍTICA</span> XSS (Cross-Site Scripting)</h2>
+            <p>Entrada de usuario sin sanitización que permite ejecución de código JavaScript malicioso.</p>
+            <form action="/search" method="GET" target="_blank">
+                <input type="text" name="q" placeholder="Buscar usuario..." 
+                       value="<script>alert('XSS Exploit')</script>">
+                <button type="submit">🔍 Probar XSS</button>
+            </form>
+            <div class="result-box">
+                <strong>Ejemplos maliciosos:</strong><br>
+                <code>&lt;script&gt;alert('Hacked')&lt;/script&gt;</code><br>
+                <code>&lt;img src=x onerror=alert('XSS')&gt;</code><br>
+                <code>&lt;svg onload=alert(1)&gt;</code>
+            </div>
+        </div>
+        
+        <div class="vulnerable">
+            <h2>🔓 <span class="vuln-tag">CRÍTICA</span> Credenciales Hardcodeadas</h2>
+            <p>Contraseñas expuestas directamente en el código JavaScript.</p>
+            <form id="loginForm">
+                <input type="text" name="username" placeholder="Usuario" value="admin">
+                <input type="password" name="password" placeholder="Contraseña" value="admin123">
+                <button type="submit">🔑 Iniciar Sesión (Inseguro)</button>
+            </form>
+            <div id="loginResult" class="result-box"></div>
+            <div class="result-box">
+                <strong>Credenciales expuestas:</strong><br>
+                • Usuario: <code>admin</code> | Contraseña: <code>admin123</code><br>
+                • Usuario: <code>user</code> | Contraseña: <code>password123</code>
+            </div>
+        </div>
+        
+        <div class="vulnerable">
+            <h2>🔓 <span class="vuln-tag">ALTA</span> Exposición de Datos Sensibles</h2>
+            <p>API sin autenticación que expone información confidencial de usuarios.</p>
+            <button onclick="fetchUsers()">📊 Mostrar Datos de Usuarios (Sin Auth)</button>
+            <button onclick="fetchDebug()">🐛 Mostrar Información de Debug</button>
+            <div id="dataResult" class="result-box"></div>
+        </div>
+        
+        <div class="vulnerable">
+            <h2>🔓 <span class="vuln-tag">MEDIA</span> SQL Injection Simulada</h2>
+            <p>Concatenación directa de parámetros en consultas "simuladas".</p>
+            <input type="text" id="userId" placeholder="ID de usuario" value="1 OR 1=1">
+            <button onclick="simulateSQLi()">🗃️ Ejecutar Consulta Vulnerable</button>
+            <div id="sqlResult" class="result-box"></div>
+        </div>
+        
+        <div class="warning">
+            <h2>🔍 ANÁLISIS AUTOMÁTICO CON SONARQUBE</h2>
+            <p>Esta página es analizada automáticamente por SonarQube con cada cambio.</p>
+            <p><strong>Vulnerabilidades que SonarQube detectará:</strong></p>
+            <ul>
+                <li>✅ XSS en formularios de búsqueda</li>
+                <li>✅ Credenciales hardcodeadas en JavaScript</li>
+                <li>✅ Exposición de datos sin autenticación</li>
+                <li>✅ Información de debug expuesta</li>
+                <li>✅ Secrets en código fuente</li>
+                <li>✅ CORS demasiado permisivo</li>
+            </ul>
+        </div>
+        
+        <script>
+            // ====================
+            // VULNERABILIDADES INTENCIONALES
+            // ====================
+            
+            // VULNERABLE: Credenciales hardcodeadas en JavaScript
+            const HARDCODED_CREDENTIALS = {
+                admin: 'admin123',
+                user: 'password123',
+                guest: 'guest123'
+            };
+            
+            // VULNERABLE: Secrets en cliente
+            const API_SECRETS = {
+                apiKey: 'sk_live_1234567890abcdef',
+                jwtSecret: 'super_secret_jwt_key_123',
+                dbPassword: 'root_password_secure_not'
+            };
+            
+            // VULNERABLE: Mostrar información de build
+            document.getElementById('buildNumber').textContent = '#' + (Math.floor(Math.random() * 100) + 1);
+            
+            // ====================
+            // FUNCIONES VULNERABLES
+            // ====================
+            
+            // Login inseguro (validación en cliente)
+            document.getElementById('loginForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const username = this.username.value;
+                const password = this.password.value;
+                
+                // VULNERABLE: Validación en cliente
+                if (HARDCODED_CREDENTIALS[username] === password) {
+                    document.getElementById('loginResult').innerHTML = 
+                        `<div style="color:#2ecc71;">
+                            ✅ <strong>Login exitoso</strong> como ${username}<br>
+                            <small>Token generado: fake_jwt_${Date.now()}</small>
+                        </div>`;
+                    // VULNERABLE: Almacenar en localStorage sin seguridad
+                    localStorage.setItem('userSession', JSON.stringify({
+                        user: username,
+                        token: 'insecure_token_' + Math.random(),
+                        expires: Date.now() + 3600000
+                    }));
+                } else {
+                    document.getElementById('loginResult').innerHTML = 
+                        `<div style="color:#ff4757;">
+                            ❌ Credenciales incorrectas<br>
+                            <small>Intenta con: admin/admin123</small>
+                        </div>`;
+                }
+            });
+            
+            // Exponer datos sensibles
+            function fetchUsers() {
+                fetch('/api/users')
+                    .then(r => r.json())
+                    .then(users => {
+                        document.getElementById('dataResult').innerHTML = 
+                            `<strong>📋 Datos de usuarios (SIN AUTENTICACIÓN):</strong><br>
+                             <pre>${JSON.stringify(users, null, 2)}</pre>
+                             <small class="danger">⚠️ ¡Contraseñas expuestas!</small>`;
+                    })
+                    .catch(e => {
+                        document.getElementById('dataResult').innerHTML = 
+                            `❌ Error: ${e.message}<br>
+                             <small>El servidor podría no estar corriendo</small>`;
+                    });
+            }
+            
+            function fetchDebug() {
+                fetch('/debug')
+                    .then(r => r.json())
+                    .then(debugInfo => {
+                        document.getElementById('dataResult').innerHTML = 
+                            `<strong>🐛 Información de Debug (EXPUESTA):</strong><br>
+                             <pre>${JSON.stringify(debugInfo, null, 2)}</pre>
+                             <small class="danger">⚠️ ¡Secrets expuestos!</small>`;
+                    });
+            }
+            
+            // SQL Injection simulada
+            function simulateSQLi() {
+                const userId = document.getElementById('userId').value;
+                // VULNERABLE: Concatenación directa
+                const maliciousQuery = `SELECT * FROM usuarios WHERE id = ${userId}`;
+                document.getElementById('sqlResult').innerHTML = 
+                    `<strong>🗃️ Consulta SQL vulnerable:</strong><br>
+                     <code>${maliciousQuery}</code><br><br>
+                     <strong>🎯 Ejemplos de ataque:</strong><br>
+                     • <code>1 OR 1=1</code> - Accede a todos los registros<br>
+                     • <code>1; DROP TABLE usuarios;</code> - Elimina tabla<br>
+                     • <code>1 UNION SELECT * FROM passwords</code> - Extrae otros datos`;
+            }
+            
+            // VULNERABLE: Debug logs
+            console.log('=== DEBUG INFO ===');
+            console.log('App: Sistema Bancario Vulnerable v2.0');
+            console.log('Build: Semestral Project');
+            console.log('Secrets expuestos:', API_SECRETS);
+            console.log('Hardcoded credentials:', HARDCODED_CREDENTIALS);
+            console.log('Session:', localStorage.getItem('userSession'));
+            console.log('==================');
+            
+            // VULNERABLE: Cookie manipulation
+            document.cookie = "session=insecure_session_123; path=/;";
+            document.cookie = "user_prefs=theme=dark; path=/;";
+        </script>
+        
+        <footer>
+            <hr>
+            <h3>📚 Proyecto Semestral - Seguridad en Aplicaciones Web</h3>
+            <p><strong>Flujo CI/CD implementado:</strong> GitHub → Jenkins → SonarQube → Despliegue Automático</p>
+            <p><strong>Vulnerabilidades implementadas:</strong> 7 tipos diferentes para análisis de seguridad</p>
+            <p><strong>Demostración en vivo:</strong> Cada cambio en este código activa análisis automático</p>
+            <p>© 2024 - Proyecto de Análisis de Vulnerabilidades Web</p>
+        </footer>
+    </div>
+</body>
+</html>
