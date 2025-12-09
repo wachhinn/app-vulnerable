@@ -98,49 +98,74 @@ pipeline {
         }
         
         stage('SonarQube Analysis v3.0') {
-            steps {
-                script {
-                    echo "=== EJECUTANDO ANÁLISIS SONARQUBE v${APP_VERSION} ==="
+    steps {
+        script {
+            echo "=== EJECUTANDO ANÁLISIS SONARQUBE v${APP_VERSION} ==="
+            
+            withSonarQubeEnv('SonarQube') {
+                sh """
+                    echo "🔍 Analizando código vulnerable (15+ vulnerabilidades)..."
+                    echo "Proyecto: ${SONAR_PROJECT_KEY}"
+                    echo "Versión: ${APP_VERSION}"
+                    echo "URL SonarQube: ${SONAR_HOST_URL}"
+                    echo ""
                     
-                    withSonarQubeEnv('SonarQube') {
-                        sh """
-                            echo "🔍 Analizando código vulnerable (15+ vulnerabilidades)..."
-                            echo "Proyecto: ${SONAR_PROJECT_KEY}"
-                            echo "Versión: ${APP_VERSION}"
-                            echo "URL SonarQube: ${SONAR_HOST_URL}"
-                            echo ""
-                            echo "📂 Directorios analizados:"
-                            echo "  • ./ (raíz)"
-                            echo "  • ./public/ (HTML/JS del frontend)"
-                            echo "  • ./php-auth/ (archivos PHP vulnerables)"
-                            
-                            # Ejecutar análisis con más detalle
-                            sonar-scanner \
-                            -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                            -Dsonar.projectName="Sistema Bancario Vulnerable ${BUILD_NUMBER} - v${APP_VERSION}" \
-                            -Dsonar.projectVersion=${APP_VERSION} \
-                            -Dsonar.sources=.,public,php-auth \
-                            -Dsonar.host.url=${SONAR_HOST_URL} \
-                            -Dsonar.exclusions=node_modules/**,**/*.test.js \
-                            -Dsonar.sourceEncoding=UTF-8 \
-                            -Dsonar.javascript.file.suffixes=.js \
-                            -Dsonar.html.file.suffixes=.html,.htm \
-                            -Dsonar.php.file.suffixes=.php \
-                            -Dsonar.tests=. \
-                            -Dsonar.test.inclusions=**/*.test.js \
-                            -Dsonar.qualitygate.wait=true \
-                            -Dsonar.qualitygate.timeout=300 \
-                            -Dsonar.scm.provider=git \
-                            -Dsonar.scm.disabled=false
-                            
-                            echo ""
-                            echo "✅ Análisis enviado a SonarQube"
-                            echo "📊 Dashboard: ${SONAR_HOST_URL}/dashboard?id=${SONAR_PROJECT_KEY}"
-                        """
-                    }
-                }
+                    # Crear archivo de configuración SonarQube temporal
+                    cat > sonar-project.properties << EOF
+# SonarQube Project Configuration
+sonar.projectKey=${SONAR_PROJECT_KEY}
+sonar.projectName=Sistema Bancario Vulnerable ${BUILD_NUMBER} - v${APP_VERSION}
+sonar.projectVersion=${APP_VERSION}
+sonar.host.url=${SONAR_HOST_URL}
+sonar.sourceEncoding=UTF-8
+
+# Fuentes a analizar (SOLUCIÓN AL ERROR DE DUPLICADO)
+sonar.sources=.
+sonar.inclusions=public/**,php-auth/**,*.js,*.json
+
+# Exclusiones
+sonar.exclusions=node_modules/**,**/*.test.js
+
+# Configuración de lenguajes
+sonar.javascript.file.suffixes=.js
+sonar.html.file.suffixes=.html,.htm
+sonar.php.file.suffixes=.php
+
+# Tests (usamos inclusión para evitar duplicados)
+sonar.tests=.
+sonar.test.inclusions=**/*.test.js
+
+# Calidad
+sonar.qualitygate.wait=true
+sonar.qualitygate.timeout=300
+
+# SCM
+sonar.scm.provider=git
+sonar.scm.disabled=false
+EOF
+                    
+                    echo "📄 Configuración SonarQube generada:"
+                    cat sonar-project.properties
+                    echo ""
+                    
+                    echo "📂 Estructura que será analizada:"
+                    echo "  • public/index.html (HTML principal - 1 vez)"
+                    echo "  • php-auth/*.php (8 archivos PHP)"
+                    echo "  • *.js (2 archivos JavaScript)"
+                    echo "  • *.json (2 archivos JSON)"
+                    echo ""
+                    
+                    # Ejecutar análisis
+                    sonar-scanner
+                    
+                    echo ""
+                    echo "✅ Análisis completado exitosamente"
+                    echo "📊 Visita: ${SONAR_HOST_URL}/dashboard?id=${SONAR_PROJECT_KEY}"
+                """
             }
         }
+    }
+}
         
         stage('Deploy & Live Demo v3.0') {
             steps {
