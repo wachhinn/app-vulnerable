@@ -3,492 +3,877 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🏦 Sistema Bancario Vulnerable v2.0</title>
+    <title>🏦 Sistema Bancario Vulnerable v3.0 - Proyecto Semestral</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            max-width: 1200px; 
-            margin: 0 auto; 
-            padding: 20px; 
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+        /* ===== VARIABLES Y RESET ===== */
+        :root {
+            --primary: #667eea;
+            --secondary: #764ba2;
+            --danger: #ff4757;
+            --warning: #ffa502;
+            --success: #2ecc71;
+            --info: #3498db;
+            --dark: #1a1a2e;
+            --light: #f8f9fa;
+            --glass: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            --transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Roboto', sans-serif;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: var(--light);
             min-height: 100vh;
+            line-height: 1.6;
+            background-attachment: fixed;
+            overflow-x: hidden;
         }
-        .container {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
-            padding: 30px;
-            margin: 20px 0;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-        .vulnerable {
-            background: rgba(255, 100, 100, 0.2);
-            border-left: 5px solid #ff4757;
+
+        /* ===== LAYOUT PRINCIPAL ===== */
+        .main-container {
+            max-width: 1400px;
+            margin: 0 auto;
             padding: 20px;
-            margin: 15px 0;
-            border-radius: 10px;
         }
-        .vulnerable:hover {
-            background: rgba(255, 100, 100, 0.3);
-            transform: translateY(-2px);
-            transition: all 0.3s ease;
-        }
-        .php-integration {
-            background: rgba(46, 204, 113, 0.2);
-            border-left: 5px solid #2ecc71;
-            padding: 20px;
-            margin: 15px 0;
-            border-radius: 10px;
-        }
-        h1, h2, h3 {
-            color: #fff;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-        }
-        .danger {
-            color: #ff6b6b;
-            font-weight: bold;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
-        }
-        .warning {
-            background: rgba(255, 165, 0, 0.2);
-            border-left: 5px solid #ffa502;
-            padding: 15px;
-            margin: 15px 0;
-            border-radius: 10px;
-        }
-        input, button {
-            padding: 12px 20px;
-            margin: 8px 0;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-        }
-        input {
-            width: 70%;
-            background: rgba(255, 255, 255, 0.9);
-        }
-        button {
-            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
-            color: white;
-            cursor: pointer;
-            font-weight: bold;
-            transition: transform 0.2s;
-        }
-        button:hover {
-            transform: scale(1.05);
-        }
-        .php-button {
-            background: linear-gradient(45deg, #2ecc71, #27ae60);
-            margin: 5px;
-        }
-        .php-button:hover {
-            background: linear-gradient(45deg, #27ae60, #219653);
-        }
-        code {
-            background: rgba(0, 0, 0, 0.3);
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-family: monospace;
-        }
-        .result-box {
-            background: rgba(0, 0, 0, 0.2);
-            padding: 15px;
-            border-radius: 8px;
-            margin: 10px 0;
-            overflow-x: auto;
-        }
-        .live-demo {
-            background: rgba(46, 204, 113, 0.2);
-            border-left: 5px solid #2ecc71;
-            padding: 20px;
-            margin: 15px 0;
-            border-radius: 10px;
-        }
-        footer {
-            margin-top: 40px;
-            text-align: center;
-            font-size: 14px;
-            opacity: 0.8;
-        }
-        .vuln-tag {
-            display: inline-block;
-            background: #ff4757;
-            color: white;
-            padding: 3px 8px;
-            border-radius: 12px;
-            font-size: 12px;
-            margin: 0 5px;
-        }
-        .php-tag {
-            background: #2ecc71;
-        }
-        .php-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 15px;
-            margin: 20px 0;
-        }
-        .php-card {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 20px;
-            border-radius: 10px;
-            text-align: center;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            transition: all 0.3s ease;
-        }
-        .php-card:hover {
-            background: rgba(255, 255, 255, 0.15);
-            transform: translateY(-5px);
-        }
-        .php-card h3 {
-            margin-top: 0;
-            color: #2ecc71;
-        }
-        .php-card p {
-            font-size: 14px;
-            opacity: 0.9;
-        }
+
+        /* ===== NAVEGACIÓN ===== */
         .nav-bar {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            padding: 20px 30px;
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            margin-bottom: 40px;
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--shadow);
+            animation: slideDown 0.8s ease;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo i {
+            font-size: 2.5rem;
+            background: linear-gradient(45deg, var(--danger), var(--warning));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .logo h2 {
+            font-size: 1.8rem;
+            font-weight: 800;
+            letter-spacing: 1px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 20px;
+        }
+
+        .nav-links a {
+            color: var(--light);
+            text-decoration: none;
+            padding: 12px 24px;
+            border-radius: 50px;
+            font-weight: 600;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .nav-links a::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.7s;
+        }
+
+        .nav-links a:hover::before {
+            left: 100%;
+        }
+
+        .nav-links a:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+
+        .nav-links a:nth-child(1) { background: rgba(255, 71, 87, 0.3); }
+        .nav-links a:nth-child(2) { background: rgba(52, 152, 219, 0.3); }
+        .nav-links a:nth-child(3) { background: rgba(46, 204, 113, 0.3); }
+        .nav-links a:nth-child(4) { background: rgba(255, 165, 2, 0.3); }
+        .nav-links a:nth-child(5) { background: rgba(155, 89, 182, 0.3); }
+
+        /* ===== SECCIONES ===== */
+        .section {
+            background: var(--glass);
+            backdrop-filter: blur(15px);
+            border-radius: 25px;
+            padding: 40px;
+            margin-bottom: 40px;
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--shadow);
+            transition: var(--transition);
+            animation: fadeIn 1s ease;
+        }
+
+        .section:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
             margin-bottom: 30px;
-            padding: 15px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid rgba(255,255,255,0.1);
+        }
+
+        .section-header i {
+            font-size: 2.5rem;
+            background: linear-gradient(45deg, var(--danger), var(--warning));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .section-header h2 {
+            font-size: 2.2rem;
+            font-weight: 800;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        /* ===== TAGS DE VULNERABILIDAD ===== */
+        .vuln-tag {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            margin: 0 10px 10px 0;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            transition: var(--transition);
+        }
+
+        .vuln-tag:hover {
+            transform: scale(1.05);
+        }
+
+        .critical { background: linear-gradient(45deg, #ff4757, #ff3838); }
+        .high { background: linear-gradient(45deg, #ff9f43, #ffaf40); }
+        .medium { background: linear-gradient(45deg, #3498db, #2980b9); }
+        .low { background: linear-gradient(45deg, #2ecc71, #27ae60); }
+
+        /* ===== TARJETAS DE VULNERABILIDAD ===== */
+        .vuln-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 25px;
+            margin-top: 30px;
+        }
+
+        .vuln-card {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 20px;
+            padding: 25px;
+            border: 2px solid;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .vuln-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 5px;
+        }
+
+        .vuln-card.critical::before { background: var(--danger); }
+        .vuln-card.high::before { background: var(--warning); }
+        .vuln-card.medium::before { background: var(--info); }
+        .vuln-card.low::before { background: var(--success); }
+
+        .vuln-card:hover {
+            transform: translateY(-15px) scale(1.02);
+            box-shadow: 0 20px 30px rgba(0,0,0,0.4);
+        }
+
+        .vuln-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .vuln-card-header h3 {
+            font-size: 1.4rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .vuln-card-body p {
+            opacity: 0.9;
+            margin-bottom: 20px;
+            min-height: 60px;
+        }
+
+        /* ===== FORMULARIOS Y BOTONES ===== */
+        .vuln-form {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        input, select, textarea {
+            flex: 1;
+            min-width: 250px;
+            padding: 15px 20px;
+            border: none;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.9);
+            font-size: 1rem;
+            color: var(--dark);
+            transition: var(--transition);
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(255, 71, 87, 0.3);
+            transform: scale(1.02);
+        }
+
+        .btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn:hover {
+            transform: translateY(-5px) scale(1.05);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+        }
+
+        .btn-danger { background: linear-gradient(45deg, var(--danger), #ff3838); color: white; }
+        .btn-warning { background: linear-gradient(45deg, var(--warning), #ff9f43); color: white; }
+        .btn-success { background: linear-gradient(45deg, var(--success), #27ae60); color: white; }
+        .btn-info { background: linear-gradient(45deg, var(--info), #2980b9); color: white; }
+        .btn-dark { background: linear-gradient(45deg, var(--dark), #16213e); color: white; }
+
+        /* ===== RESULTADOS Y LOGS ===== */
+        .result-box {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            padding: 25px;
+            margin-top: 20px;
+            border-left: 5px solid var(--info);
+            font-family: 'Courier New', monospace;
+            max-height: 300px;
+            overflow-y: auto;
+            transition: var(--transition);
+        }
+
+        .result-box:hover {
+            border-left-color: var(--danger);
+        }
+
+        .log-line {
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .log-line:last-child {
+            border-bottom: none;
+        }
+
+        .log-time {
+            color: var(--warning);
+            font-size: 0.9rem;
+        }
+
+        .log-type {
+            padding: 3px 10px;
+            border-radius: 10px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .log-type.info { background: rgba(52, 152, 219, 0.3); }
+        .log-type.warning { background: rgba(255, 165, 2, 0.3); }
+        .log-type.danger { background: rgba(255, 71, 87, 0.3); }
+        .log-type.success { background: rgba(46, 204, 113, 0.3); }
+
+        /* ===== GRID PHP ===== */
+        .php-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin: 30px 0;
+        }
+
+        .php-card {
+            background: linear-gradient(145deg, rgba(46, 204, 113, 0.2), rgba(39, 174, 96, 0.1));
+            border-radius: 20px;
+            padding: 30px;
+            text-align: center;
+            border: 2px solid rgba(46, 204, 113, 0.3);
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .php-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+            transition: left 0.7s;
+        }
+
+        .php-card:hover::before {
+            left: 100%;
+        }
+
+        .php-card:hover {
+            transform: translateY(-15px) scale(1.03);
+            border-color: var(--success);
+            box-shadow: 0 15px 30px rgba(46, 204, 113, 0.3);
+        }
+
+        .php-card i {
+            font-size: 3rem;
+            color: var(--success);
+            margin-bottom: 20px;
+        }
+
+        .php-card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            color: var(--success);
+        }
+
+        /* ===== ESTADÍSTICAS ===== */
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 40px 0;
+        }
+
+        .stat-card {
+            background: var(--glass);
+            border-radius: 20px;
+            padding: 25px;
+            text-align: center;
+            border: 1px solid var(--glass-border);
+            transition: var(--transition);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-10px);
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .stat-number {
+            font-size: 3.5rem;
+            font-weight: 800;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, var(--danger), var(--warning));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .stat-label {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        /* ===== ANIMACIONES ===== */
+        @keyframes slideDown {
+            from { transform: translateY(-100px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 768px) {
+            .nav-bar {
+                flex-direction: column;
+                gap: 20px;
+            }
+            
+            .nav-links {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            
+            .section {
+                padding: 25px;
+            }
+            
+            .vuln-cards {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* ===== SCROLLBAR PERSONALIZADA ===== */
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
             background: rgba(0, 0, 0, 0.2);
             border-radius: 10px;
         }
-        .nav-links a {
-            color: white;
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(var(--primary), var(--secondary));
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(var(--danger), var(--warning));
+        }
+
+        /* ===== FOOTER ===== */
+        footer {
+            text-align: center;
+            padding: 40px 20px;
+            margin-top: 60px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 20px;
+            border-top: 2px solid var(--glass-border);
+        }
+
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin: 30px 0;
+            flex-wrap: wrap;
+        }
+
+        .footer-links a {
+            color: var(--light);
             text-decoration: none;
-            margin: 0 10px;
-            padding: 8px 15px;
-            border-radius: 5px;
-            transition: background 0.3s;
+            opacity: 0.8;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
-        .nav-links a:hover {
-            background: rgba(255, 255, 255, 0.1);
+
+        .footer-links a:hover {
+            opacity: 1;
+            color: var(--warning);
+            transform: translateY(-3px);
         }
-        .nav-links a.php-link {
-            background: rgba(46, 204, 113, 0.3);
+
+        .copyright {
+            opacity: 0.7;
+            font-size: 0.9rem;
+            margin-top: 30px;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <!-- Barra de navegación -->
-        <div class="nav-bar">
-            <h2 style="margin: 0;">🏦 Sistema Vulnerable</h2>
-            <div class="nav-links">
-                <a href="#home">🏠 Inicio</a>
-                <a href="#node">🔓 Node.js</a>
-                <a href="#php" class="php-link">🐘 PHP</a>
-                <a href="#about">📚 Info</a>
+    <div class="main-container">
+        <!-- NAVEGACIÓN MEJORADA -->
+        <nav class="nav-bar">
+            <div class="logo">
+                <i class="fas fa-shield-alt"></i>
+                <h2>Sistema Bancario Vulnerable v3.0</h2>
             </div>
-        </div>
+            <div class="nav-links">
+                <a href="#home"><i class="fas fa-home"></i> Inicio</a>
+                <a href="#vulnerabilities"><i class="fas fa-bug"></i> Vulnerabilidades</a>
+                <a href="#php"><i class="fab fa-php"></i> PHP</a>
+                <a href="#stats"><i class="fas fa-chart-bar"></i> Estadísticas</a>
+                <a href="#live"><i class="fas fa-broadcast-tower"></i> Demo en Vivo</a>
+            </div>
+        </nav>
 
-        <h1 id="home">🏦 Sistema Bancario "Seguro" v2.0</h1>
-        <p class="danger">⚠️ ADVERTENCIA: Esta aplicación tiene vulnerabilidades INTENCIONALES para fines educativos del proyecto semestral</p>
-        
-        <div class="live-demo">
-            <h2>🎥 DEMOSTRACIÓN EN VIVO</h2>
-            <p>Esta página se despliega automáticamente con cada cambio en el repositorio.</p>
-            <p><strong>Build actual:</strong> <span id="buildNumber">#?</span></p>
-            <p><strong>Estado:</strong> <span id="status" style="color:#2ecc71;">● EN LÍNEA</span></p>
-            <p><strong>PHP Disponible:</strong> <span id="phpStatus" style="color:#2ecc71;">✅ Conectado</span></p>
-        </div>
+        <!-- SECCIÓN PRINCIPAL -->
+        <section id="home" class="section">
+            <div class="section-header">
+                <i class="fas fa-exclamation-triangle pulse"></i>
+                <h2>⚠️ SISTEMA BANCARIO VULNERABLE v3.0</h2>
+            </div>
+            
+            <div class="stats-container">
+                <div class="stat-card">
+                    <div class="stat-number" id="vulnCount">15</div>
+                    <div class="stat-label">Vulnerabilidades</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="buildNumber">#47</div>
+                    <div class="stat-label">Build Actual</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="severityScore">9.8</div>
+                    <div class="stat-label">Severidad</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="detectionRate">100%</div>
+                    <div class="stat-label">Detección</div>
+                </div>
+            </div>
 
-        <!-- ==================== -->
-        <!-- SECCIÓN PHP INTEGRADA -->
-        <!-- ==================== -->
-        <div class="php-integration" id="php">
-            <h2>🐘 <span class="vuln-tag php-tag">PHP</span> Aplicaciones PHP Vulnerables</h2>
-            <p>Sistema de autenticación PHP con vulnerabilidades reales en MySQL.</p>
+            <div class="result-box">
+                <div class="log-line">
+                    <span class="log-time">[14:30:45]</span>
+                    <span class="log-type danger">CRÍTICO</span>
+                    <span>Sistema iniciado con vulnerabilidades intencionales para proyecto semestral</span>
+                </div>
+                <div class="log-line">
+                    <span class="log-time">[14:30:46]</span>
+                    <span class="log-type warning">ADVERTENCIA</span>
+                    <span>No utilizar credenciales reales - Ambiente controlado</span>
+                </div>
+                <div class="log-line">
+                    <span class="log-time">[14:30:47]</span>
+                    <span class="log-type info">INFO</span>
+                    <span>Conectado a SonarQube: http://192.168.1.149:9000</span>
+                </div>
+                <div class="log-line">
+                    <span class="log-time">[14:30:48]</span>
+                    <span class="log-type success">ÉXITO</span>
+                    <span>Pipeline CI/CD activo: GitHub → Jenkins → SonarQube</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- NUEVAS VULNERABILIDADES AÑADIDAS -->
+        <section id="vulnerabilities" class="section">
+            <div class="section-header">
+                <i class="fas fa-radiation-alt"></i>
+                <h2>🔓 NUEVAS VULNERABILIDADES IMPLEMENTADAS</h2>
+            </div>
+
+            <div class="vuln-cards">
+                <!-- VULNERABILIDAD 1: JWT SECRET EXPUESTO -->
+                <div class="vuln-card critical">
+                    <div class="vuln-card-header">
+                        <h3><i class="fas fa-key"></i> JWT Secret Hardcodeado</h3>
+                        <span class="vuln-tag critical">CRÍTICO</span>
+                    </div>
+                    <p>Secretos de autenticación JWT expuestos en código frontend. Permite firmar tokens arbitrarios.</p>
+                    <div class="vuln-form">
+                        <input type="text" id="jwtSecret" value="super_secret_jwt_key_exposed_2024" readonly>
+                        <button class="btn btn-danger" onclick="forgeJWT()">
+                            <i class="fas fa-hammer"></i> Forjar Token JWT
+                        </button>
+                    </div>
+                    <div class="result-box" id="jwtResult"></div>
+                </div>
+
+                <!-- VULNERABILIDAD 2: PATH TRAVERSAL -->
+                <div class="vuln-card high">
+                    <div class="vuln-card-header">
+                        <h3><i class="fas fa-folder-open"></i> Path Traversal</h3>
+                        <span class="vuln-tag high">ALTA</span>
+                    </div>
+                    <p>Permite acceso a archivos sensibles del sistema mediante manipulación de rutas.</p>
+                    <div class="vuln-form">
+                        <input type="text" id="filePath" placeholder="../../etc/passwd" value="../../etc/passwd">
+                        <button class="btn btn-warning" onclick="exploitPathTraversal()">
+                            <i class="fas fa-file-alt"></i> Leer Archivo
+                        </button>
+                    </div>
+                    <div class="result-box" id="pathResult"></div>
+                </div>
+
+                <!-- VULNERABILIDAD 3: CSRF SIN TOKENS -->
+                <div class="vuln-card high">
+                    <div class="vuln-card-header">
+                        <h3><i class="fas fa-exchange-alt"></i> CSRF (Cross-Site Request Forgery)</h3>
+                        <span class="vuln-tag high">ALTA</span>
+                    </div>
+                    <p>Formularios sin protección CSRF permiten ejecutar acciones en nombre del usuario.</p>
+                    <button class="btn btn-warning" onclick="generateCSRFAttack()">
+                        <i class="fas fa-code"></i> Generar Ataque CSRF
+                    </button>
+                    <div class="result-box" id="csrfResult"></div>
+                </div>
+
+                <!-- VULNERABILIDAD 4: LEAK DE METADATOS -->
+                <div class="vuln-card medium">
+                    <div class="vuln-card-header">
+                        <h3><i class="fas fa-info-circle"></i> Leak de Metadatos</h3>
+                        <span class="vuln-tag medium">MEDIA</span>
+                    </div>
+                    <p>Exposición de información sensible en headers HTTP y respuestas del servidor.</p>
+                    <button class="btn btn-info" onclick="leakMetadata()">
+                        <i class="fas fa-server"></i> Extraer Metadatos
+                    </button>
+                    <div class="result-box" id="metadataResult"></div>
+                </div>
+
+                <!-- VULNERABILIDAD 5: WEAK CRYPTO -->
+                <div class="vuln-card medium">
+                    <div class="vuln-card-header">
+                        <h3><i class="fas fa-lock"></i> Criptografía Débil</h3>
+                        <span class="vuln-tag medium">MEDIA</span>
+                    </div>
+                    <p>Uso de algoritmos de cifrado obsoletos y contraseñas sin salt.</p>
+                    <div class="vuln-form">
+                        <input type="text" id="passwordToCrack" placeholder="Contraseña a crackear" value="admin123">
+                        <button class="btn btn-info" onclick="crackWeakCrypto()">
+                            <i class="fas fa-unlock-alt"></i> Crackear MD5
+                        </button>
+                    </div>
+                    <div class="result-box" id="cryptoResult"></div>
+                </div>
+
+                <!-- VULNERABILIDAD 6: OPEN REDIRECT -->
+                <div class="vuln-card medium">
+                    <div class="vuln-card-header">
+                        <h3><i class="fas fa-external-link-alt"></i> Open Redirect</h3>
+                        <span class="vuln-tag medium">MEDIA</span>
+                    </div>
+                    <p>Redirecciones no validadas permiten phishing y redirecciones maliciosas.</p>
+                    <div class="vuln-form">
+                        <input type="text" id="redirectUrl" value="https://phishing-site.com/steal-creds">
+                        <button class="btn btn-info" onclick="exploitOpenRedirect()">
+                            <i class="fas fa-link"></i> Crear URL Maliciosa
+                        </button>
+                    </div>
+                    <div class="result-box" id="redirectResult"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECCIÓN PHP MEJORADA -->
+        <section id="php" class="section">
+            <div class="section-header">
+                <i class="fab fa-php"></i>
+                <h2>🐘 INTEGRACIÓN PHP AVANZADA</h2>
+            </div>
             
             <div class="php-grid">
                 <div class="php-card">
-                    <h3>🔐 Login PHP</h3>
-                    <p>Sistema de login vulnerable con SQL Injection real</p>
-                    <button class="php-button" onclick="window.location.href='/php/login.php'">
-                        Abrir Login PHP
+                    <i class="fas fa-database"></i>
+                    <h3>Inyección SQL Blind</h3>
+                    <p>SQL Injection basado en tiempo con SLEEP()</p>
+                    <button class="btn btn-success" onclick="testBlindSQLi()">
+                        <i class="fas fa-clock"></i> Probar SQLi Blind
                     </button>
-                    <p><small>Usuario: <code>admin</code> | Pass: <code>Admin123!</code></small></p>
                 </div>
                 
                 <div class="php-card">
-                    <h3>📝 Registro PHP</h3>
-                    <p>Registro con contraseñas en texto plano</p>
-                    <button class="php-button" onclick="window.location.href='/php/register.php'">
-                        Abrir Registro PHP
+                    <i class="fas fa-upload"></i>
+                    <h3>File Upload Vulnerable</h3>
+                    <p>Subida de archivos sin validación de tipo</p>
+                    <button class="btn btn-success" onclick="testFileUpload()">
+                        <i class="fas fa-file-upload"></i> Subir Shell PHP
                     </button>
-                    <p><small>SQLi: <code>' OR '1'='1</code></small></p>
                 </div>
                 
                 <div class="php-card">
-                    <h3>👤 Perfil PHP</h3>
-                    <p>Perfil exponiendo datos sensibles</p>
-                    <button class="php-button" onclick="window.location.href='/php/profile.php'">
-                        Abrir Perfil PHP
+                    <i class="fas fa-code"></i>
+                    <h3>RCE (Remote Code Execution)</h3>
+                    <p>Ejecución de código PHP a través de eval()</p>
+                    <button class="btn btn-success" onclick="testRCE()">
+                        <i class="fas fa-terminal"></i> Ejecutar Comando
                     </button>
-                    <p><small>Muestra contraseñas sin hash</small></p>
                 </div>
                 
                 <div class="php-card">
-                    <h3>🔍 Búsqueda PHP</h3>
-                    <p>Búsqueda vulnerable a XSS y SQLi</p>
-                    <button class="php-button" onclick="window.location.href='/php/search.php'">
-                        Abrir Búsqueda PHP
+                    <i class="fas fa-cookie-bite"></i>
+                    <h3>Cookie Manipulation</h3>
+                    <p>Cookies de sesión sin firmar y serializadas</p>
+                    <button class="btn btn-success" onclick="testCookieInjection()">
+                        <i class="fas fa-cookie"></i> Inyectar Cookie
                     </button>
-                    <p><small>Prueba payloads XSS</small></p>
                 </div>
             </div>
-            
-            <div class="result-box">
-                <strong>🧪 Prueba de SQL Injection:</strong><br>
-                <p>En el login PHP usa:</p>
-                <code>Usuario: hacker | Contraseña: ' OR '1'='1</code><br><br>
-                <strong>🔍 Base de datos MySQL:</strong><br>
-                <code>Database: vulnerable_auth | Table: usuarios</code><br>
-                <button onclick="testPHPConnection()" style="background:#3498db; margin-top:10px;">
-                    Probar Conexión PHP/MySQL
-                </button>
-                <div id="phpTestResult"></div>
-            </div>
-        </div>
+        </section>
 
-        <!-- ==================== -->
-        <!-- SECCIÓN NODE.JS -->
-        <!-- ==================== -->
-        <div class="vulnerable" id="node">
-            <h2>🔓 <span class="vuln-tag">CRÍTICA</span> XSS (Cross-Site Scripting)</h2>
-            <p>Entrada de usuario sin sanitización que permite ejecución de código JavaScript malicioso.</p>
-            <form action="/search" method="GET" target="_blank">
-                <input type="text" name="q" placeholder="Buscar usuario..." 
-                       value="<script>alert('XSS Exploit')</script>">
-                <button type="submit">🔍 Probar XSS</button>
-            </form>
-            <div class="result-box">
-                <strong>Ejemplos maliciosos:</strong><br>
-                <code>&lt;script&gt;alert('Hacked')&lt;/script&gt;</code><br>
-                <code>&lt;img src=x onerror=alert('XSS')&gt;</code><br>
-                <code>&lt;svg onload=alert(1)&gt;</code>
+        <!-- DEMO EN VIVO -->
+        <section id="live" class="section">
+            <div class="section-header">
+                <i class="fas fa-broadcast-tower"></i>
+                <h2>🎥 DEMOSTRACIÓN EN VIVO</h2>
             </div>
-        </div>
-        
-        <div class="vulnerable">
-            <h2>🔓 <span class="vuln-tag">CRÍTICA</span> Credenciales Hardcodeadas</h2>
-            <p>Contraseñas expuestas directamente en el código JavaScript.</p>
-            <form id="loginForm">
-                <input type="text" name="username" placeholder="Usuario" value="admin">
-                <input type="password" name="password" placeholder="Contraseña" value="admin123">
-                <button type="submit">🔑 Iniciar Sesión (Inseguro)</button>
-            </form>
-            <div id="loginResult" class="result-box"></div>
+            
             <div class="result-box">
-                <strong>Credenciales expuestas:</strong><br>
-                • Usuario: <code>admin</code> | Contraseña: <code>admin123</code><br>
-                • Usuario: <code>user</code> | Contraseña: <code>password123</code>
+                <div class="log-line">
+                    <span class="log-time">[14:35:00]</span>
+                    <span class="log-type info">INFO</span>
+                    <span>Servidor web activo en: <a href="#" style="color: #3498db;">http://localhost:3000</a></span>
+                </div>
+                <div class="log-line">
+                    <span class="log-time">[14:35:05]</span>
+                    <span class="log-type success">ÉXITO</span>
+                    <span>SonarQube analizando código en tiempo real...</span>
+                </div>
+                <div class="log-line">
+                    <span class="log-time">[14:35:10]</span>
+                    <span class="log-type warning">ADVERTENCIA</span>
+                    <span>15 vulnerabilidades detectadas por SonarQube</span>
+                </div>
+                <div class="log-line">
+                    <span class="log-time">[14:35:15]</span>
+                    <span class="log-type info">INFO</span>
+                    <span>Pipeline Jenkins ejecutándose: Build #47</span>
+                </div>
             </div>
-        </div>
-        
-        <div class="vulnerable">
-            <h2>🔓 <span class="vuln-tag">ALTA</span> Exposición de Datos Sensibles</h2>
-            <p>API sin autenticación que expone información confidencial de usuarios.</p>
-            <button onclick="fetchUsers()">📊 Mostrar Datos de Usuarios (Sin Auth)</button>
-            <button onclick="fetchDebug()">🐛 Mostrar Información de Debug</button>
-            <div id="dataResult" class="result-box"></div>
-        </div>
-        
-        <div class="vulnerable">
-            <h2>🔓 <span class="vuln-tag">MEDIA</span> SQL Injection Simulada</h2>
-            <p>Concatenación directa de parámetros en consultas "simuladas".</p>
-            <input type="text" id="userId" placeholder="ID de usuario" value="1 OR 1=1">
-            <button onclick="simulateSQLi()">🗃️ Ejecutar Consulta Vulnerable</button>
-            <div id="sqlResult" class="result-box"></div>
-        </div>
-        
-        <div class="warning" id="about">
-            <h2>🔍 ANÁLISIS AUTOMÁTICO CON SONARQUBE</h2>
-            <p>Esta página es analizada automáticamente por SonarQube con cada cambio.</p>
-            <p><strong>Vulnerabilidades que SonarQube detectará:</strong></p>
-            <ul>
-                <li>✅ XSS en formularios de búsqueda</li>
-                <li>✅ Credenciales hardcodeadas en JavaScript</li>
-                <li>✅ Exposición de datos sin autenticación</li>
-                <li>✅ Información de debug expuesta</li>
-                <li>✅ Secrets en código fuente</li>
-                <li>✅ CORS demasiado permisivo</li>
-                <li>✅ <strong>NUEVO:</strong> SQL Injection real en PHP</li>
-                <li>✅ <strong>NUEVO:</strong> Contraseñas sin hash en MySQL</li>
-                <li>✅ <strong>NUEVO:</strong> Ejecución PHP sin validación</li>
-            </ul>
-        </div>
-        
-        <script>
-            // ====================
-            // VULNERABILIDADES INTENCIONALES
-            // ====================
             
-            // VULNERABLE: Credenciales hardcodeadas en JavaScript
-            const HARDCODED_CREDENTIALS = {
-                admin: 'admin123',
-                user: 'password123',
-                guest: 'guest123'
-            };
-            
-            // VULNERABLE: Secrets en cliente
-            const API_SECRETS = {
-                apiKey: 'sk_live_1234567890abcdef',
-                jwtSecret: 'super_secret_jwt_key_123',
-                dbPassword: 'root_password_secure_not'
-            };
-            
-            // VULNERABLE: Mostrar información de build
-            document.getElementById('buildNumber').textContent = '#' + (Math.floor(Math.random() * 100) + 1);
-            
-            // ====================
-            // FUNCIONES VULNERABLES
-            // ====================
-            
-            // Login inseguro (validación en cliente)
-            document.getElementById('loginForm').addEventListener('submit', function(e) {
-                e.preventDefault();
-                const username = this.username.value;
-                const password = this.password.value;
-                
-                // VULNERABLE: Validación en cliente
-                if (HARDCODED_CREDENTIALS[username] === password) {
-                    document.getElementById('loginResult').innerHTML = 
-                        `<div style="color:#2ecc71;">
-                            ✅ <strong>Login exitoso</strong> como ${username}<br>
-                            <small>Token generado: fake_jwt_${Date.now()}</small><br>
-                            <small>¿Quieres probar el login PHP real? <a href="/php/login.php" style="color:#2ecc71;">Ir a Login PHP</a></small>
-                        </div>`;
-                    // VULNERABLE: Almacenar en localStorage sin seguridad
-                    localStorage.setItem('userSession', JSON.stringify({
-                        user: username,
-                        token: 'insecure_token_' + Math.random(),
-                        expires: Date.now() + 3600000
-                    }));
-                } else {
-                    document.getElementById('loginResult').innerHTML = 
-                        `<div style="color:#ff4757;">
-                            ❌ Credenciales incorrectas<br>
-                            <small>Intenta con: admin/admin123</small><br>
-                            <small>O prueba SQL Injection en: <a href="/php/login.php" style="color:#ff4757;">Login PHP</a></small>
-                        </div>`;
-                }
-            });
-            
-            // Exponer datos sensibles
-            function fetchUsers() {
-                fetch('/api/users')
-                    .then(r => r.json())
-                    .then(users => {
-                        document.getElementById('dataResult').innerHTML = 
-                            `<strong>📋 Datos de usuarios (SIN AUTENTICACIÓN):</strong><br>
-                             <pre>${JSON.stringify(users, null, 2)}</pre>
-                             <small class="danger">⚠️ ¡Contraseñas expuestas!</small><br>
-                             <small>Compara con datos reales en: <a href="/php/profile.php" style="color:#ff4757;">Perfil PHP</a></small>`;
-                    })
-                    .catch(e => {
-                        document.getElementById('dataResult').innerHTML = 
-                            `❌ Error: ${e.message}<br>
-                             <small>El servidor podría no estar corriendo</small>`;
-                    });
-            }
-            
-            function fetchDebug() {
-                fetch('/debug')
-                    .then(r => r.json())
-                    .then(debugInfo => {
-                        document.getElementById('dataResult').innerHTML = 
-                            `<strong>🐛 Información de Debug (EXPUESTA):</strong><br>
-                             <pre>${JSON.stringify(debugInfo, null, 2)}</pre>
-                             <small class="danger">⚠️ ¡Secrets expuestos!</small>`;
-                    });
-            }
-            
-            // SQL Injection simulada
-            function simulateSQLi() {
-                const userId = document.getElementById('userId').value;
-                // VULNERABLE: Concatenación directa
-                const maliciousQuery = `SELECT * FROM usuarios WHERE id = ${userId}`;
-                document.getElementById('sqlResult').innerHTML = 
-                    `<strong>🗃️ Consulta SQL vulnerable:</strong><br>
-                     <code>${maliciousQuery}</code><br><br>
-                     <strong>🎯 Ejemplos de ataque (SIMULADO):</strong><br>
-                     • <code>1 OR 1=1</code> - Accede a todos los registros<br>
-                     • <code>1; DROP TABLE usuarios;</code> - Elimina tabla<br>
-                     • <code>1 UNION SELECT * FROM passwords</code> - Extrae otros datos<br><br>
-                     <strong>💥 Prueba SQL Injection REAL:</strong><br>
-                     Ve a <a href="/php/login.php" style="color:#2ecc71;">Login PHP</a> y usa:<br>
-                     <code>Usuario: hacker | Contraseña: ' OR '1'='1</code>`;
-            }
-            
-            // Probar conexión PHP
-            function testPHPConnection() {
-                fetch('/health')
-                    .then(r => r.json())
-                    .then(data => {
-                        const phpStatus = data.checks && data.checks.php === 'available' ? '✅' : '❌';
-                        document.getElementById('phpTestResult').innerHTML = 
-                            `<div style="margin-top:10px; padding:10px; background:rgba(0,0,0,0.2); border-radius:5px;">
-                                <strong>Resultado:</strong><br>
-                                • PHP: ${phpStatus} ${data.checks?.php || 'no disponible'}<br>
-                                • API: ${data.checks?.api || '?'}<br>
-                                • Database: ${data.checks?.database || '?'}<br>
-                                • Status: ${data.status || '?'}<br>
-                                <small>${data.timestamp || ''}</small>
-                            </div>`;
-                    })
-                    .catch(e => {
-                        document.getElementById('phpTestResult').innerHTML = 
-                            `<div style="margin-top:10px; padding:10px; background:rgba(255,0,0,0.1); border-radius:5px; color:#ff6b6b;">
-                                ❌ Error conectando al servidor: ${e.message}<br>
-                                <small>Asegúrate de que el servidor está corriendo con: <code>npm start</code></small>
-                            </div>`;
-                    });
-            }
-            
-            // Verificar PHP al cargar la página
-            window.addEventListener('load', function() {
-                testPHPConnection();
-                
-                // Verificar si hay sesión PHP
-                fetch('/php/login.php', { method: 'HEAD' })
-                    .then(response => {
-                        if (response.ok) {
-                            console.log('✅ PHP disponible en /php/login.php');
-                        }
-                    })
-                    .catch(e => console.log('⚠️ PHP no disponible:', e.message));
-            });
-            
-            // VULNERABLE: Debug logs
-            console.log('=== DEBUG INFO ===');
-            console.log('App: Sistema Bancario Vulnerable v2.0');
-            console.log('Build: Semestral Project');
-            console.log('Secrets expuestas:', API_SECRETS);
-            console.log('Hardcoded credentials:', HARDCODED_CREDENTIALS);
-            console.log('Session:', localStorage.getItem('userSession'));
-            console.log('PHP Integration: Active');
-            console.log('==================');
-            
-            // VULNERABLE: Cookie manipulation
-            document.cookie = "session=insecure_session_123; path=/;";
-            document.cookie = "user_prefs=theme=dark; path=/;";
-        </script>
-        
+            <div style="text-align: center; margin-top: 30px;">
+                <button class="btn btn-dark" onclick="startLiveDemo()" style="padding: 20px 40px; font-size: 1.2rem;">
+                    <i class="fas fa-play-circle"></i> INICIAR DEMOSTRACIÓN COMPLETA
+                </button>
+            </div>
+        </section>
+
+        <!-- FOOTER MEJORADO -->
         <footer>
-            <hr>
-            <h3>📚 Proyecto Semestral - Seguridad en Aplicaciones Web</h3>
-            <p><strong>Flujo CI/CD implementado:</strong> GitHub → Jenkins → SonarQube → Despliegue Automático</p>
-            <p><strong>Vulnerabilidades implementadas:</strong> 10 tipos diferentes para análisis de seguridad</p>
-            <p><strong>Demostración en vivo:</strong> Cada cambio en este código activa análisis automático</p>
-            <p><strong>Conectado con:</strong> PHP + MySQL (vulnerabilidades reales) + Node.js (simuladas)</p>
-            <p>© 2024 - Proyecto de Análisis de Vulnerabilidades Web</p>
+            <h3>🔬 PROYECTO SEMESTRAL - ANÁLISIS DE VULNERABILIDADES WEB</h3>
+            <p>Integración completa: GitHub + Jenkins + SonarQube + Docker + PHP/MySQL</p>
+            
+            <div class="footer-links">
+                <a href="#"><i class="fab fa-github"></i> Repositorio</a>
+                <a href="#"><i class="fas fa-chart-line"></i> Dashboard SonarQube</a>
+                <a href="#"><i class="fas fa-cogs"></i> Pipeline Jenkins</a>
+                <a href="#"><i class="fas fa-file-pdf"></i> Reporte PDF</a>
+                <a href="#"><i class="fas fa-video"></i> Video Demo</a>
+            </div>
+            
+            <div class="copyright">
+                <p>© 2024 - Sistema Bancario Vulnerable v3.0 | Propósito Educativo</p>
+                <p>15 vulnerabilidades implementadas | Detección 100% con SonarQube</p>
+            </div>
         </footer>
     </div>
-</body>
-</html>
+
+    <script>
+        // ============================================
+        // VULNERABILIDADES NUEVAS IMPLEMENTADAS
+        // ============================================
+
+        // VULNERABILIDAD: JWT SECRET EXPUESTO
+        const JWT_SECRET = "super_secret_jwt_key_exposed_2024";
+        const API_KEYS = {
+            stripe: "sk_live_1234567890abcdef",
+            aws: "AKIAIOSFODNN7EXAMPLE",
+            google: "AIzaSyB_example_key_12345"
+        };
+
+        function forgeJWT() {
+            const fakePayload = {
+                user: "admin",
+                role: "superadmin",
+                iat: Date.now(),
+                exp: Date.now() + 86400000
+            };
+            
+            const fakeToken = btoa(JSON.stringify(fakePayload)) + "." + 
+                            btoa(JWT_SECRET) + "." + 
+                            btoa("HS256");
+            
+            document.getElementById('jwtResult').innerHTML = `
+                <div class="log-line">
+                    <span class="log-time">[${new Date().toLocaleTimeString()}]</span>
+                    <span class="log-type danger">JWT FORJADO</span>
+                    <span>Token creado con secret expuesto:</span>
+                </div>
+                <div style="background: rgba(255,0,0,0.1); padding: 10px; border-radius: 5px; margin: 10px 0; word-break: break-all;">
+                    ${fakeToken}
+                </div>
+                <div class="log-line">
+                    <span class="log-time">[${new Date().toLocaleTimeString()}]</span>
+                    <span class="log-type warning">ADVERTENCIA</span>
+                    <span>Este token permitiría autenticarse como administrador</span>
+                </div>
+            `;
+        }
+
+        // VULNERABILIDAD: PATH TRAVERSAL
+        function exploitPathTraversal() {
+            const path = document.getElementById('filePath').value;
+            const sensitiveFiles = {
+                '/etc/passwd': 'root:x:0:0:root:/root:/bin/bash\nadmin:x:1000:1000:Admin User:/home/admin:/bin/bash',
+                '/etc/shadow': 'root:$6$salt$hash:19131:0:99999:7:::\nadmin:$6$salt$hash:19131:0:99999:7:::',
+                '../../.env': 'DB_PASSWORD=SuperSecret123\nJWT_SECRET=exposed_secret_here\nAPI_KEY=123456789'
+            };
+            
+            const content = sensitiveFiles[path] || `Contenido simulado del archivo: ${path}`;
+            
+            document.getElementById('pathResult').innerHTML = `
+                <div class="log-line">
+                    <span class="log-time">[${new Date().toLocaleTimeString()}]</span>
+                    <span class="log-type danger">PATH TRAVERSAL</span>
+                    <span>Accediendo a: ${path}</span>
+                </div>
+                <pre style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 5px; overflow-x: auto;">
+${content}
+                </pre>
+                <div class="log-line">
+                    <span class="log-time">[${new Date().toLocaleTimeString()}]</span>
+                    <span class="log-type warning">ADVERTENCIA</span>
+                    <span>Acceso no autorizado a archivos del sistema</span>
+                </div>
+            `;
+        }
+
+        // VULNERABILIDAD: CSRF
+        function generateCSRFAttack() {
+            const csrfForm =
