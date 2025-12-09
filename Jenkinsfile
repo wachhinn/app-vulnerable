@@ -6,9 +6,28 @@ pipeline {
         SONAR_PROJECT_KEY = 'app-vulnerable-${BUILD_NUMBER}'
         APP_PORT = '3000'
         APP_URL = 'http://localhost:${APP_PORT}'
+        APP_VERSION = '3.0.0'
     }
     
     stages {
+        stage('Clean Workspace & Kill Previous') {
+            steps {
+                sh '''
+                    echo "🧹 Limpiando workspace y procesos anteriores..."
+                    
+                    # Matar cualquier proceso en puerto 3000
+                    echo "🛑 Deteniendo procesos previos en puerto ${APP_PORT}..."
+                    fuser -k ${APP_PORT}/tcp 2>/dev/null || true
+                    pkill -f "node.*server.js" 2>/dev/null || true
+                    pkill -f "npm start" 2>/dev/null || true
+                    sleep 3
+                    
+                    # Limpiar archivos temporales
+                    rm -f server.pid server.log demo-urls.txt *.md *.txt 2>/dev/null || true
+                '''
+            }
+        }
+        
         stage('Checkout') {
             steps {
                 checkout([
@@ -19,216 +38,316 @@ pipeline {
                         credentialsId: 'github-token'
                     ]]
                 ])
-                sh 'echo "✅ Repositorio clonado"'
+                sh 'echo "✅ Repositorio clonado - Commit: $(git log --oneline -1)"'
             }
         }
         
         stage('Setup Project') {
             steps {
                 sh '''
-                    echo "=== CONFIGURANDO PROYECTO ==="
+                    echo "=== CONFIGURANDO PROYECTO v${APP_VERSION} ==="
                     
+                    # Verificar Node.js
                     if command -v node > /dev/null; then
                         echo "✅ NodeJS: $(node --version)"
                         echo "✅ NPM: $(npm --version)"
                     else
-                        echo "Instalando NodeJS..."
+                        echo "❌ NodeJS no encontrado. Instalando..."
                         curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
                         sudo apt-get install -y nodejs
                     fi
                     
+                    # Verificar PHP para análisis SonarQube
+                    if command -v php > /dev/null; then
+                        echo "✅ PHP: $(php --version | head -1)"
+                    else
+                        echo "⚠️  PHP no encontrado (necesario para análisis de archivos PHP)"
+                    fi
+                    
+                    # Instalar dependencias
                     if [ -f package.json ]; then
+                        echo "📦 Instalando dependencias Node.js..."
                         npm install || echo "⚠️  npm install continuó con errores"
                     else
-                        echo "{}" > package.json
+                        echo "❌ package.json no encontrado. Creando..."
+                        echo '{"name": "app-vulnerable", "version": "3.0.0"}' > package.json
                         npm install express --save
                     fi
                     
-                    echo "✅ Estructura del proyecto:"
+                    # Instalar sonar-scanner si no existe
+                    if ! command -v sonar-scanner > /dev/null; then
+                        echo "📦 Instalando sonar-scanner..."
+                        npm install -g sonar-scanner
+                    fi
+                    
+                    echo ""
+                    echo "📁 ESTRUCTURA DEL PROYECTO:"
+                    echo "========================================"
                     ls -la
                     echo ""
-                    echo "✅ Archivos HTML/JS:"
-                    find . -name "*.html" -o -name "*.js" | grep -v node_modules | head -20
+                    echo "📁 Carpeta public/:"
+                    ls -la public/ 2>/dev/null || echo "   ❌ No existe public/"
+                    echo ""
+                    echo "📁 Carpeta php-auth/:"
+                    ls -la php-auth/ 2>/dev/null || echo "   ❌ No existe php-auth/"
+                    echo ""
+                    echo "📄 Archivos principales:"
+                    find . -name "*.html" -o -name "*.js" -o -name "*.php" | grep -v node_modules | sort | head -30
                 '''
             }
         }
         
-        stage('SonarQube Analysis') {
+        stage('SonarQube Analysis v3.0') {
             steps {
                 script {
-                    echo "=== EJECUTANDO ANÁLISIS SONARQUBE ==="
+                    echo "=== EJECUTANDO ANÁLISIS SONARQUBE v${APP_VERSION} ==="
                     
                     withSonarQubeEnv('SonarQube') {
                         sh """
-                            echo "🔍 Analizando código vulnerable..."
+                            echo "🔍 Analizando código vulnerable (15+ vulnerabilidades)..."
                             echo "Proyecto: ${SONAR_PROJECT_KEY}"
+                            echo "Versión: ${APP_VERSION}"
                             echo "URL SonarQube: ${SONAR_HOST_URL}"
+                            echo ""
+                            echo "📂 Directorios analizados:"
+                            echo "  • ./ (raíz)"
+                            echo "  • ./public/ (HTML/JS del frontend)"
+                            echo "  • ./php-auth/ (archivos PHP vulnerables)"
                             
+                            # Ejecutar análisis con más detalle
                             sonar-scanner \
                             -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                            -Dsonar.projectName="Sistema Bancario Vulnerable ${BUILD_NUMBER}" \
-                            -Dsonar.projectVersion=2.0.0 \
-                            -Dsonar.sources=. \
+                            -Dsonar.projectName="Sistema Bancario Vulnerable ${BUILD_NUMBER} - v${APP_VERSION}" \
+                            -Dsonar.projectVersion=${APP_VERSION} \
+                            -Dsonar.sources=.,public,php-auth \
                             -Dsonar.host.url=${SONAR_HOST_URL} \
-                            -Dsonar.exclusions=node_modules/** \
+                            -Dsonar.exclusions=node_modules/**,**/*.test.js \
                             -Dsonar.sourceEncoding=UTF-8 \
                             -Dsonar.javascript.file.suffixes=.js \
-                            -Dsonar.html.file.suffixes=.html \
+                            -Dsonar.html.file.suffixes=.html,.htm \
+                            -Dsonar.php.file.suffixes=.php \
                             -Dsonar.tests=. \
                             -Dsonar.test.inclusions=**/*.test.js \
-                            -Dsonar.qualitygate.wait=true
+                            -Dsonar.qualitygate.wait=true \
+                            -Dsonar.qualitygate.timeout=300 \
+                            -Dsonar.scm.provider=git \
+                            -Dsonar.scm.disabled=false
                             
+                            echo ""
                             echo "✅ Análisis enviado a SonarQube"
+                            echo "📊 Dashboard: ${SONAR_HOST_URL}/dashboard?id=${SONAR_PROJECT_KEY}"
                         """
                     }
                 }
             }
         }
         
-        stage('Deploy & Live Demo') {
+        stage('Deploy & Live Demo v3.0') {
             steps {
-                sh '''
-                    echo "=== DESPLIEGUE EN VIVO ==="
-                    echo "🚀 Iniciando página web vulnerable..."
+                script {
+                    echo "=== DESPLIEGUE EN VIVO v${APP_VERSION} ==="
                     
-                    nohup npm start > server.log 2>&1 &
-                    SERVER_PID=$!
-                    echo "PID del servidor: $SERVER_PID"
-                    echo $SERVER_PID > server.pid
+                    // Matar procesos previos antes de iniciar
+                    sh '''
+                        echo "🛑 Asegurando que no hay procesos en puerto ${APP_PORT}..."
+                        fuser -k ${APP_PORT}/tcp 2>/dev/null || true
+                        sleep 2
+                    '''
                     
-                    echo "⏳ Esperando 15 segundos para que el servidor inicie..."
-                    sleep 15
+                    // Iniciar servidor con manejo de errores
+                    sh '''
+                        echo "🚀 Iniciando SISTEMA BANCARIO VULNERABLE v${APP_VERSION}..."
+                        
+                        # Iniciar servidor en background
+                        nohup npm start > server.log 2>&1 &
+                        SERVER_PID=$!
+                        echo "PID del servidor: $SERVER_PID"
+                        echo $SERVER_PID > server.pid
+                        
+                        # Esperar con verificación progresiva
+                        echo "⏳ Esperando que el servidor inicie (máximo 30s)..."
+                        for i in {1..30}; do
+                            if curl -s -f "http://localhost:${APP_PORT}/health" > /dev/null 2>&1; then
+                                echo "✅ Servidor activo después de ${i}s"
+                                break
+                            fi
+                            
+                            if [ $i -eq 30 ]; then
+                                echo "❌ Timeout: Servidor no respondió después de 30s"
+                                echo "📄 Últimos logs:"
+                                tail -50 server.log
+                                exit 1
+                            fi
+                            
+                            sleep 1
+                        done
+                        
+                        # Verificar contenido principal
+                        echo "🔍 Verificando página principal..."
+                        if curl -s "http://localhost:${APP_PORT}/" | grep -q "SISTEMA BANCARIO VULNERABLE"; then
+                            echo "✅ Página principal cargada correctamente"
+                        else
+                            echo "⚠️  Página principal podría no ser la versión 3.0"
+                        fi
+                    '''
                     
-                    echo "🔄 Verificando estado del servidor..."
-                    if curl -s -f "http://localhost:${APP_PORT}/health" > /dev/null; then
+                    // Mostrar información de demo
+                    sh '''
+                        echo ""
+                        echo "========================================"
+                        echo "🌐 SISTEMA BANCARIO VULNERABLE v${APP_VERSION}"
+                        echo "========================================"
                         echo "✅ Página web FUNCIONANDO en: http://localhost:${APP_PORT}"
+                        echo "📊 Health Check: http://localhost:${APP_PORT}/health"
+                        echo "🔓 Debug Info: http://localhost:${APP_PORT}/debug"
                         echo ""
+                        echo "🎯 15+ VULNERABILIDADES IMPLEMENTADAS:"
                         echo "========================================"
-                        echo "🌐 DEMOSTRACIÓN EN VIVO - ACCESOS:"
+                        echo "1. 🔴 XSS (Cross-Site Scripting)"
+                        echo "2. 🔴 Credenciales Hardcodeadas"
+                        echo "3. 🔴 CORS demasiado permisivo"
+                        echo "4. 🔴 Exposición de datos sin autenticación"
+                        echo "5. 🔴 SQL Injection simulada"
+                        echo "6. 🔴 Información de debug expuesta"
+                        echo "7. 🔴 JWT Secret Hardcodeado"
+                        echo "8. 🔴 Path Traversal"
+                        echo "9. 🔴 CSRF sin tokens"
+                        echo "10. 🔴 Leak de Metadatos"
+                        echo "11. 🔴 Criptografía Débil (MD5)"
+                        echo "12. 🔴 Open Redirect"
+                        echo "13. 🔴 PHP SQL Injection real"
+                        echo "14. 🔴 File Upload sin validación"
+                        echo "15. 🔴 RCE (Remote Code Execution)"
+                        echo ""
+                        echo "🔓 DEMOSTRACIÓN EN VIVO - ACCESOS:"
                         echo "========================================"
                         echo ""
-                        echo "📱 PÁGINA PRINCIPAL:"
+                        echo "📱 PÁGINA PRINCIPAL (NUEVO DISEÑO):"
                         echo "   http://localhost:${APP_PORT}/"
                         echo ""
-                        echo "🔓 VULNERABILIDADES PARA PROBAR:"
+                        echo "🐘 APLICACIONES PHP VULNERABLES:"
+                        echo "   http://localhost:${APP_PORT}/php-menu"
                         echo ""
-                        echo "1. 🔴 XSS (Cross-Site Scripting):"
-                        echo "   http://localhost:${APP_PORT}/search?q=<script>alert(\"XSS\")</script>"
-                        echo "   http://localhost:${APP_PORT}/search?q=<img src=x onerror=alert(\"Hacked\")>"
+                        echo "🔍 PRUEBAS ESPECÍFICAS:"
+                        echo "   1. XSS: http://localhost:${APP_PORT}/search?q=<script>alert('v3.0')</script>"
+                        echo "   2. Datos expuestos: http://localhost:${APP_PORT}/api/users"
+                        echo "   3. Debug: http://localhost:${APP_PORT}/debug"
+                        echo "   4. PHP: http://localhost:${APP_PORT}/php/login.php"
                         echo ""
-                        echo "2. 🔴 Credenciales Hardcodeadas:"
-                        echo "   Usuario: admin | Contraseña: admin123"
-                        echo "   (Ver en login de la página)"
-                        echo ""
-                        echo "3. 🔴 Datos Sensibles Expuestos:"
-                        echo "   http://localhost:${APP_PORT}/api/users"
-                        echo "   (API sin autenticación con contraseñas)"
-                        echo ""
-                        echo "4. 🔴 Información de Debug Expuesta:"
-                        echo "   http://localhost:${APP_PORT}/debug"
-                        echo "   (Secrets, configuraciones internas)"
-                        echo ""
-                        echo "5. 🟡 SQL Injection Simulada:"
-                        echo "   http://localhost:${APP_PORT}/api/user/1"
-                        echo "   http://localhost:${APP_PORT}/api/user/1 OR 1=1"
-                        echo ""
-                        echo "6. 🟡 CORS Demasiado Permisivo:"
-                        echo "   (Configurado en server.js - permite cualquier origen)"
-                        echo ""
-                        echo "========================================"
-                        echo "🔍 SonarQube detectará estas 7 vulnerabilidades"
+                        echo "🔍 SONARQUBE DETECTARÁ TODAS ESTAS VULNERABILIDADES"
+                        echo "   ${SONAR_HOST_URL}/dashboard?id=${SONAR_PROJECT_KEY}"
                         echo "========================================"
                         
-                        cat > demo-urls.txt << URLS
-🌐 PÁGINA WEB VULNERABLE - PROYECTO SEMESTRAL
+                        # Crear archivo de demostración actualizado
+                        cat > demo-urls-v${APP_VERSION}.txt << URLS
+🌐 SISTEMA BANCARIO VULNERABLE v${APP_VERSION}
 ========================================
 
 📊 BUILD: ${BUILD_NUMBER}
 🕐 HORA INICIO: $(date)
+🔗 SONARQUBE: ${SONAR_HOST_URL}/dashboard?id=${SONAR_PROJECT_KEY}
+
+🎯 15+ VULNERABILIDADES IMPLEMENTADAS:
+
+🔴 CRÍTICAS (10):
+   1. XSS en /search
+   2. Credenciales hardcodeadas en JS
+   3. CORS demasiado permisivo
+   4. API sin autenticación (/api/users)
+   5. Secrets expuestos (/debug)
+   6. JWT Secret Hardcodeado
+   7. Path Traversal
+   8. CSRF sin tokens
+   9. PHP SQL Injection real
+   10. File Upload sin validación
+
+🟡 MEDIAS (5):
+   11. Leak de Metadatos
+   12. Criptografía Débil (MD5)
+   13. Open Redirect
+   14. RCE (Remote Code Execution)
+   15. SQL Injection simulada
 
 🔗 URLS PARA DEMOSTRACIÓN:
 
-1. PÁGINA PRINCIPAL:
-   http://localhost:3000/
+1. PÁGINA PRINCIPAL (Nuevo diseño):
+   http://localhost:${APP_PORT}/
 
-2. VULNERABILIDAD XSS:
-   http://localhost:3000/search?q=<script>alert("XSS_DEMO")</script>
-   http://localhost:3000/search?q=<svg/onload=alert("SVG_XSS")>
+2. VULNERABILIDADES NUEVAS:
+   • JWT: http://localhost:${APP_PORT}/#vulnerabilities
+   • CSRF: http://localhost:${APP_PORT}/#vulnerabilities
+   • Path Traversal: http://localhost:${APP_PORT}/#vulnerabilities
 
-3. DATOS EXPUESTOS (API sin auth):
-   http://localhost:3000/api/users
+3. PHP VULNERABLE:
+   • Login: http://localhost:${APP_PORT}/php/login.php
+   • Registro: http://localhost:${APP_PORT}/php/register.php
+   • SQLi: Usuario: hacker | Pass: ' OR '1'='1
 
-4. DEBUG INFO (Secrets expuestos):
-   http://localhost:3000/debug
+4. ENDPOINTS CLÁSICOS:
+   • XSS: http://localhost:${APP_PORT}/search?q=<script>alert('XSS_v3')</script>
+   • Datos: http://localhost:${APP_PORT}/api/users
+   • Debug: http://localhost:${APP_PORT}/debug
 
-5. SQL INJECTION SIMULADA:
-   http://localhost:3000/api/user/1
-   http://localhost:${APP_PORT}/api/user/1 OR 1=1
-
-6. HEALTH CHECK:
-   http://localhost:3000/health
-
-7. SONARQUBE ANALISIS:
-   ${SONAR_HOST_URL}/dashboard?id=${SONAR_PROJECT_KEY}
-
-🎯 VULNERABILIDADES IMPLEMENTADAS:
-   1. XSS (Cross-Site Scripting)
-   2. Credenciales hardcodeadas
-   3. CORS demasiado permisivo
-   4. Exposición de datos sin autenticación
-   5. SQL Injection simulada
-   6. Información de debug expuesta
-   7. Logs con datos sensibles
+📊 PARA PRESENTACIÓN:
+1. Muestra nuevo diseño v3.0
+2. Demuestra 3 vulnerabilidades nuevas
+3. Muestra SonarQube con 15+ hallazgos
+4. Explica CI/CD completo
+5. Haz cambio en vivo y muestra análisis automático
 
 ⚠️  ADVERTENCIA: Vulnerabilidades intencionales para proyecto semestral
 URLS
                         
-                        echo "✅ Archivo demo-urls.txt creado"
-                        cat demo-urls.txt
+                        echo "✅ Archivo demo-urls-v${APP_VERSION}.txt creado"
+                    '''
+                    
+                    // Mantener servidor activo
+                    sh '''
+                        echo ""
+                        echo "⏰ Manteniendo servidor activo por 5 minutos para demostración..."
+                        echo "   (Se detendrá automáticamente después del pipeline)"
+                        echo ""
+                        echo "📝 Logs del servidor (últimas 10 líneas):"
+                        tail -10 server.log
                         
-                    else
-                        echo "❌ Servidor no responde. Revisando logs..."
-                        cat server.log
-                        echo "❌ Health check falló. El servidor podría no haber iniciado correctamente."
-                    fi
-                    
-                    echo ""
-                    echo "⏰ Manteniendo servidor activo por 5 minutos para demostración en vivo..."
-                    echo "   (El servidor se detendrá automáticamente después)"
-                    
-                    echo ""
-                    echo "📝 Últimos logs del servidor:"
-                    tail -10 server.log
-                    
-                    sleep 300
-                    
-                    echo "🛑 Deteniendo servidor después de demostración..."
-                    kill $SERVER_PID 2>/dev/null || true
-                    echo "✅ Servidor detenido"
-                '''
+                        # Mantener activo mientras se generan reportes
+                        sleep 60
+                    '''
+                }
             }
         }
         
-        stage('Security Report') {
+        stage('Security Report v3.0') {
             steps {
                 sh '''
-                    echo "=== GENERANDO REPORTE DE SEGURIDAD ==="
+                    echo "=== GENERANDO REPORTE DE SEGURIDAD v${APP_VERSION} ==="
                     
-                    echo "🔎 Buscando vulnerabilidades en código..."
+                    echo "🔎 Buscando vulnerabilidades en código (15+ tipos)..."
                     
                     echo "1. Buscando patrones XSS..."
-                    grep -r "innerHTML\\|document.write\\|eval(" --include="*.js" --include="*.html" . 2>/dev/null > xss-findings.txt || echo "No se encontraron patrones XSS"
+                    find . -name "*.html" -o -name "*.js" -o -name "*.php" | grep -v node_modules | xargs grep -l "innerHTML\\|document.write\\|eval(\\|innerText.*=" 2>/dev/null > xss-findings.txt || echo "No se encontraron patrones XSS"
                     
-                    echo "2. Buscando credenciales hardcodeadas..."
-                    grep -r -i "password\\|secret\\|key\\|token\\|api_key" --include="*.js" --include="*.html" --include="*.json" . 2>/dev/null | grep -v node_modules > credentials-findings.txt || echo "No se encontraron credenciales"
+                    echo "2. Buscando credenciales y secrets..."
+                    find . -name "*.js" -o -name "*.json" -o -name "*.php" -o -name "*.html" | grep -v node_modules | xargs grep -i "password\\|secret\\|key\\|token\\|api_key\\|jwt\\|md5\\|sha1" 2>/dev/null > credentials-findings.txt || echo "No se encontraron credenciales"
                     
-                    echo "3. Contando archivos vulnerables..."
-                    TOTAL_FILES=$(find . -name "*.js" -o -name "*.html" -o -name "*.json" | grep -v node_modules | wc -l)
-                    VULN_FILES=$(find . -name "*.js" -o -name "*.html" -o -name "*.json" | grep -v node_modules | xargs grep -l "password\\|secret\\|innerHTML\\|document.write" 2>/dev/null | wc -l)
+                    echo "3. Buscando vulnerabilidades de seguridad..."
+                    find . -name "*.js" -o -name "*.php" | grep -v node_modules | xargs grep -i "exec(\\|system(\\|eval(\\|shell_exec\\|passthru\\|proc_open" 2>/dev/null > rce-findings.txt || echo "No se encontraron RCE"
                     
-                    cat > security-report-${BUILD_NUMBER}.md << REPORT
+                    echo "4. Buscando SQL Injection patterns..."
+                    find . -name "*.php" -o -name "*.js" | grep -v node_modules | xargs grep -i "mysql_query\\|query.*concat\\|query.*\\$" 2>/dev/null > sqli-findings.txt || echo "No se encontraron SQLi"
+                    
+                    echo "5. Contando estadísticas..."
+                    TOTAL_FILES=$(find . -name "*.js" -o -name "*.html" -o -name "*.php" -o -name "*.json" | grep -v node_modules | wc -l)
+                    VULN_FILES=$(find . -name "*.js" -o -name "*.html" -o -name "*.php" -o -name "*.json" | grep -v node_modules | xargs grep -l "password\\|secret\\|innerHTML\\|document.write\\|eval(\\|exec(" 2>/dev/null | wc -l)
+                    
+                    echo "📊 Estadísticas:"
+                    echo "  • Total archivos analizados: ${TOTAL_FILES}"
+                    echo "  • Archivos con vulnerabilidades: ${VULN_FILES}"
+                    
+                    # Crear reporte actualizado
+                    cat > security-report-v${APP_VERSION}-${BUILD_NUMBER}.md << REPORT
 # 📊 REPORTE DE ANÁLISIS DE SEGURIDAD
-## Sistema Bancario Vulnerable v2.0
+## Sistema Bancario Vulnerable v${APP_VERSION}
 ## Build: ${BUILD_NUMBER}
 ## Fecha: $(date '+%Y-%m-%d %H:%M:%S')
 
@@ -236,70 +355,105 @@ URLS
 - **Total archivos analizados:** ${TOTAL_FILES}
 - **Archivos con vulnerabilidades:** ${VULN_FILES}
 - **Tiempo de ejecución:** $(echo ${currentBuild.durationString} | sed 's/ y contando//')
+- **Versión:** ${APP_VERSION}
 
-### 🎯 VULNERABILIDADES IMPLEMENTADAS
-1. 🔴 **XSS (Cross-Site Scripting)** - Endpoint /search
-2. 🔴 **Credenciales Hardcodeadas** - JavaScript y API
-3. 🔴 **Exposición de Datos** - /api/users sin autenticación
-4. 🔴 **Debug Info Expuesta** - /debug endpoint
-5. 🟡 **SQL Injection Simulada** - /api/user/:id
-6. 🟡 **CORS Demasiado Permisivo** - Configuración server.js
-7. 🟡 **Logs con Datos Sensibles** - Console.log con credenciales
+### 🎯 15+ VULNERABILIDADES IMPLEMENTADAS
+#### 🔴 CRÍTICAS (10):
+1. **XSS (Cross-Site Scripting)** - Endpoint /search sin sanitización
+2. **Credenciales Hardcodeadas** - JS, PHP y API
+3. **CORS Demasiado Permisivo** - Configuración server.js
+4. **Exposición de Datos** - /api/users sin autenticación
+5. **Debug Info Expuesta** - /debug endpoint
+6. **JWT Secret Hardcodeado** - Secrets en frontend
+7. **Path Traversal** - Acceso a archivos del sistema
+8. **CSRF sin Tokens** - Formularios sin protección
+9. **PHP SQL Injection real** - Login PHP vulnerable
+10. **File Upload sin validación** - PHP upload vulnerable
+
+#### 🟡 MEDIAS (5):
+11. **SQL Injection Simulada** - /api/user/:id
+12. **Leak de Metadatos** - Headers HTTP expuestos
+13. **Criptografía Débil** - MD5 y algoritmos obsoletos
+14. **Open Redirect** - Redirecciones no validadas
+15. **RCE (Remote Code Execution)** - PHP eval() vulnerable
 
 ### 🌐 DEMOSTRACIÓN EN VIVO
-**Servidor ejecutado en:** http://localhost:3000
+**Servidor ejecutado en:** http://localhost:${APP_PORT}
 **Duración de demostración:** 5 minutos
-**Estado:** $(if curl -s -f "http://localhost:3000/health" > /dev/null; then echo "✅ ACTIVO"; else echo "❌ INACTIVO"; fi)
+**Estado:** $(if curl -s -f "http://localhost:${APP_PORT}/health" > /dev/null; then echo "✅ ACTIVO"; else echo "❌ INACTIVO"; fi)
 
 ### 🔗 ENLACES IMPORTANTES
 - **SonarQube:** ${SONAR_HOST_URL}/dashboard?id=${SONAR_PROJECT_KEY}
 - **Repositorio GitHub:** https://github.com/wachhinn/app-vulnerable
 - **Jenkins Build:** ${BUILD_URL}
+- **Dashboard SonarQube:** ${SONAR_HOST_URL}/dashboard?id=${SONAR_PROJECT_KEY}
 
 ### 📋 HALLAZGOS DE ANÁLISIS AUTOMÁTICO
-#### XSS Detectado:
+#### XSS Detectado ($(wc -l < xss-findings.txt 2>/dev/null || echo 0) hallazgos):
 $(if [ -f xss-findings.txt ] && [ -s xss-findings.txt ]; then
   echo "=== INICIO CÓDIGO XSS ==="
-  cat xss-findings.txt | head -10
+  head -15 xss-findings.txt
   echo "=== FIN CÓDIGO XSS ==="
 else
   echo "No se encontraron patrones XSS obvios"
 fi)
 
-#### Credenciales Detectadas:
+#### Credenciales Detectadas ($(wc -l < credentials-findings.txt 2>/dev/null || echo 0) hallazgos):
 $(if [ -f credentials-findings.txt ] && [ -s credentials-findings.txt ]; then
   echo "=== INICIO CREDENCIALES ==="
-  cat credentials-findings.txt | head -10
+  head -15 credentials-findings.txt
   echo "=== FIN CREDENCIALES ==="
 else
   echo "No se encontraron credenciales hardcodeadas obvias"
 fi)
 
-### 🚨 RECOMENDACIONES
-1. **Sanitizar todas las entradas de usuario** (especialmente en /search)
-2. **Eliminar credenciales hardcodeadas** y usar variables de entorno
-3. **Implementar autenticación** en endpoints sensibles (/api/users)
-4. **Remover endpoint /debug** o protegerlo en producción
-5. **Configurar CORS adecuadamente** (orígenes específicos)
-6. **No loguear datos sensibles** en console.log
+#### RCE Detectado ($(wc -l < rce-findings.txt 2>/dev/null || echo 0) hallazgos):
+$(if [ -f rce-findings.txt ] && [ -s rce-findings.txt ]; then
+  echo "=== INICIO RCE ==="
+  head -10 rce-findings.txt
+  echo "=== FIN RCE ==="
+else
+  echo "No se encontraron patrones RCE obvios"
+fi)
+
+#### SQL Injection Detectado ($(wc -l < sqli-findings.txt 2>/dev/null || echo 0) hallazgos):
+$(if [ -f sqli-findings.txt ] && [ -s sqli-findings.txt ]; then
+  echo "=== INICIO SQLi ==="
+  head -10 sqli-findings.txt
+  echo "=== FIN SQLi ==="
+else
+  echo "No se encontraron patrones SQLi obvios"
+fi)
+
+### 🚨 RECOMENDACIONES DE SEGURIDAD
+1. **Sanitizar todas las entradas** (HTML, JS, PHP)
+2. **Usar variables de entorno** para secrets
+3. **Implementar autenticación JWT** con tokens firmados
+4. **Configurar CORS** específico por origen
+5. **Usar prepared statements** en SQL
+6. **Validar tipos de archivo** en uploads
+7. **Ocultar información de debug** en producción
+8. **Usar HTTPS** con certificados válidos
+9. **Implementar CSRF tokens** en formularios
+10. **Actualizar algoritmos** de cifrado (evitar MD5)
 
 ### 📊 PARA PRESENTACIÓN SEMESTRAL
-1. **Muestra la página web funcionando** en http://localhost:3000
-2. **Demuestra vulnerabilidades** en vivo (XSS, datos expuestos)
-3. **Muestra reporte SonarQube** con hallazgos
-4. **Explica flujo CI/CD** (GitHub → Jenkins → SonarQube → Despliegue)
+1. **Muestra nuevo diseño v${APP_VERSION}** en http://localhost:${APP_PORT}
+2. **Demuestra 3 vulnerabilidades nuevas** (JWT, CSRF, Path Traversal)
+3. **Muestra SonarQube** con 15+ hallazgos de seguridad
+4. **Explica flujo CI/CD completo** (GitHub → Jenkins → SonarQube → Despliegue)
 5. **Haz cambios en tiempo real** y muestra análisis automático
 
 ---
 
 *Reporte generado automáticamente por pipeline CI/CD*
-*Proyecto Semestral - Seguridad en Aplicaciones Web*
+*Proyecto Semestral - Seguridad en Aplicaciones Web v${APP_VERSION}*
 REPORT
                     
-                    echo "✅ Reporte generado: security-report-${BUILD_NUMBER}.md"
+                    echo "✅ Reporte generado: security-report-v${APP_VERSION}-${BUILD_NUMBER}.md"
                     echo ""
-                    echo "📄 RESUMEN DEL REPORTE:"
-                    head -30 security-report-${BUILD_NUMBER}.md
+                    echo "📄 RESUMEN DEL REPORTE (v${APP_VERSION}):"
+                    head -40 security-report-v${APP_VERSION}-${BUILD_NUMBER}.md
                 '''
             }
         }
@@ -309,7 +463,7 @@ REPORT
         always {
             echo ""
             echo "========================================"
-            echo "🏁 BUILD ${BUILD_NUMBER} FINALIZADO"
+            echo "🏁 BUILD ${BUILD_NUMBER} (v${APP_VERSION}) FINALIZADO"
             echo "========================================"
             echo "📊 Resultado: ${currentBuild.currentResult}"
             echo "⏱️  Duración: ${currentBuild.durationString}"
@@ -317,54 +471,58 @@ REPORT
             echo "🌐 PÁGINA WEB DESPLEGADA EN:"
             echo "   http://localhost:${APP_PORT}"
             echo ""
-            echo "🔍 ANÁLISIS SONARQUBE:"
+            echo "🔍 ANÁLISIS SONARQUBE (15+ vulnerabilidades):"
             echo "   ${SONAR_HOST_URL}/dashboard?id=${SONAR_PROJECT_KEY}"
             echo ""
-            echo "📁 REPORTES GENERADOS:"
-            echo "   • security-report-${BUILD_NUMBER}.md"
-            echo "   • demo-urls.txt"
+            echo "📁 REPORTES GENERADOS (v${APP_VERSION}):"
+            echo "   • security-report-v${APP_VERSION}-${BUILD_NUMBER}.md"
+            echo "   • demo-urls-v${APP_VERSION}.txt"
             echo "   • xss-findings.txt"
             echo "   • credentials-findings.txt"
+            echo "   • rce-findings.txt"
+            echo "   • sqli-findings.txt"
             echo "========================================"
             
             archiveArtifacts artifacts: '*.md,*.txt,server.log', fingerprint: true
             
             sh '''
+                echo "🛑 Limpiando procesos y archivos temporales..."
                 [ -f server.pid ] && kill $(cat server.pid) 2>/dev/null || true
                 pkill -f "node server.js" 2>/dev/null || true
+                fuser -k ${APP_PORT}/tcp 2>/dev/null || true
                 sleep 2
+                rm -f server.pid 2>/dev/null || true
             '''
-            
-            cleanWs()
         }
         success {
             echo ""
-            echo "🎉 ¡PROYECTO SEMESTRAL COMPLETADO!"
+            echo "🎉 ¡PROYECTO SEMESTRAL v${APP_VERSION} COMPLETADO!"
             echo "========================================"
             echo "✅ TODO LISTO PARA TU PRESENTACIÓN:"
             echo ""
-            echo "1. ✅ Página web vulnerable DESPLEGADA"
-            echo "2. ✅ Análisis SonarQube EJECUTADO"
-            echo "3. ✅ 7 vulnerabilidades IMPLEMENTADAS"
-            echo "4. ✅ Demostración en VIVO configurada"
-            echo "5. ✅ Reportes de seguridad GENERADOS"
+            echo "1. ✅ Página web vulnerable v${APP_VERSION} DESPLEGADA"
+            echo "2. ✅ Análisis SonarQube con 15+ vulnerabilidades EJECUTADO"
+            echo "3. ✅ 15+ vulnerabilidades IMPLEMENTADAS y documentadas"
+            echo "4. ✅ Demostración en VIVO con nuevo diseño configurada"
+            echo "5. ✅ Reportes de seguridad v${APP_VERSION} GENERADOS"
             echo ""
             echo "📋 ACCIONES PARA TU PRESENTACIÓN:"
-            echo "1. Muestra la página web funcionando"
-            echo "2. Explota vulnerabilidades en vivo"
-            echo "3. Muestra hallazgos de SonarQube"
-            echo "4. Explica el flujo CI/CD completo"
-            echo "5. Haz un cambio y muestra análisis automático"
+            echo "1. Muestra el NUEVO DISEÑO v${APP_VERSION} funcionando"
+            echo "2. Explota 3 vulnerabilidades NUEVAS en vivo"
+            echo "3. Muestra SonarQube con TODOS los hallazgos"
+            echo "4. Explica el flujo CI/CD completo paso a paso"
+            echo "5. Haz un cambio en GitHub y muestra análisis automático"
             echo "========================================"
         }
         failure {
             echo ""
             echo "🔧 SOLUCIÓN DE PROBLEMAS:"
-            echo "1. Verifica que SonarQube esté corriendo"
-            echo "2. Revisa credenciales en Jenkins"
-            echo "3. Verifica que NodeJS esté instalado"
-            echo "4. Revisa server.log para errores"
-            echo "5. Prueba 'npm start' manualmente"
+            echo "1. Verifica que SonarQube esté corriendo en ${SONAR_HOST_URL}"
+            echo "2. Revisa credenciales 'github-token' en Jenkins"
+            echo "3. Verifica que NodeJS y PHP estén instalados"
+            echo "4. Revisa server.log para errores: tail -100 server.log"
+            echo "5. Prueba 'npm start' manualmente en el workspace"
+            echo "6. Verifica que el puerto ${APP_PORT} esté libre: netstat -tulpn | grep :${APP_PORT}"
         }
     }
 }
