@@ -876,4 +876,232 @@ ${content}
 
         // VULNERABILIDAD: CSRF
         function generateCSRFAttack() {
-            const csrfForm =
+            const csrfForm = `
+                <form action="http://localhost:3000/api/transfer" method="POST" id="csrfForm">
+                    <input type="hidden" name="amount" value="10000">
+                    <input type="hidden" name="to" value="attacker_account">
+                    <input type="hidden" name="currency" value="USD">
+                </form>
+                <script>
+                    document.getElementById('csrfForm').submit();
+                <\/script>
+            `;
+            
+            document.getElementById('csrfResult').innerHTML = `
+                <div class="log-line">
+                    <span class="log-time">[${new Date().toLocaleTimeString()}]</span>
+                    <span class="log-type danger">CSRF PAYLOAD</span>
+                    <span>Formulario malicioso generado:</span>
+                </div>
+                <pre style="background: rgba(255,0,0,0.1); padding: 15px; border-radius: 5px; overflow-x: auto;">
+${csrfForm}
+                </pre>
+                <div class="log-line">
+                    <span class="log-time">[${new Date().toLocaleTimeString()}]</span>
+                    <span class="log-type warning">ADVERTENCIA</span>
+                    <span>Este código ejecutaría una transferencia si el usuario está autenticado</span>
+                </div>
+            `;
+        }
+
+        // VULNERABILIDAD: LEAK DE METADATOS
+        function leakMetadata() {
+            const metadata = {
+                server: "nginx/1.18.0 (Ubuntu)",
+                php_version: "8.1.2-1ubuntu2",
+                x_powered_by: "PHP/8.1.2",
+                x_debug_token: "abc123def456",
+                database: "MySQL 8.0.32",
+                framework: "Express 4.18.2",
+                node_version: "v18.19.1",
+                environment: "development",
+                debug_mode: "true",
+                api_keys_exposed: Object.keys(API_KEYS).length
+            };
+            
+            let html = `
+                <div class="log-line">
+                    <span class="log-time">[${new Date().toLocaleTimeString()}]</span>
+                    <span class="log-type danger">METADATOS EXPUESTOS</span>
+                    <span>Headers HTTP y configuración del servidor:</span>
+                </div>
+            `;
+            
+            for (const [key, value] of Object.entries(metadata)) {
+                html += `
+                    <div class="log-line">
+                        <span style="color: #ffa502; min-width: 150px;">${key}:</span>
+                        <span>${value}</span>
+                    </div>
+                `;
+            }
+            
+            html += `
+                <div class="log-line">
+                    <span class="log-time">[${new Date().toLocaleTimeString()}]</span>
+                    <span class="log-type warning">ADVERTENCIA</span>
+                    <span>Esta información ayuda a ataques dirigidos</span>
+                </div>
+            `;
+            
+            document.getElementById('metadataResult').innerHTML = html;
+        }
+
+        // VULNERABILIDAD: CRIPTOGRAFÍA DÉBIL
+        function crackWeakCrypto() {
+            const password = document.getElementById('passwordToCrack').value;
+            const md5Hash = '21232f297a57a5a743894a0e4a801fc3'; // admin en MD5
+            const weakHashes = {
+                'admin123': '0192023a7bbd73250516f069df18b500',
+                'password': '5f4dcc3b5aa765d61d8327deb882cf99',
+                '123456': 'e10adc3949ba59abbe56e057f20f883e'
+            };
+            
+            let result = "No encontrada en rainbow table";
+            if (weakHashes[password]) {
+                result = `Hash MD5 encontrado: ${weakHashes[password]}`;
+            }
+            
+            document.getElementById('cryptoResult').innerHTML = `
+                <div class="log-line">
+                    <span class="log-time">[${new Date().toLocaleTimeString()}]</span>
+                    <span class="log-type danger">MD5 CRACKED</span>
+                    <span>Contraseña: ${password}</span>
+                </div>
+                <div class="log-line">
+                    <span style="color: #ff4757;">${result}</span>
+                </div>
+                <div class="log-line">
+                    <span class="log-time">[${new Date().toLocaleTimeString()}]</span>
+                    <span class="log-type warning">ADVERTENCIA</span>
+                    <span>MD5 es considerado inseguro desde 2005</span>
+                </div>
+            `;
+        }
+
+        // VULNERABILIDAD: OPEN REDIRECT
+        function exploitOpenRedirect() {
+            const url = document.getElementById('redirectUrl').value;
+            const maliciousUrl = `http://localhost:3000/redirect?url=${encodeURIComponent(url)}`;
+            
+            document.getElementById('redirectResult').innerHTML = `
+                <div class="log-line">
+                    <span class="log-time">[${new Date().toLocaleTimeString()}]</span>
+                    <span class="log-type danger">OPEN REDIRECT</span>
+                    <span>URL maliciosa generada:</span>
+                </div>
+                <div style="background: rgba(255,0,0,0.1); padding: 15px; border-radius: 5px; margin: 10px 0; word-break: break-all;">
+                    <a href="${maliciousUrl}" target="_blank" style="color: #ff4757;">${maliciousUrl}</a>
+                </div>
+                <div class="log-line">
+                    <span class="log-time">[${new Date().toLocaleTimeString()}]</span>
+                    <span class="log-type warning">ADVERTENCIA</span>
+                    <span>Esta URL redirigiría a: ${url}</span>
+                </div>
+            `;
+        }
+
+        // ============================================
+        // FUNCIONES PHP AVANZADAS
+        // ============================================
+
+        function testBlindSQLi() {
+            alert("Simulación: SQL Injection Blind con SLEEP(5)\nConsulta: SELECT * FROM users WHERE id=1 AND SLEEP(5)");
+        }
+
+        function testFileUpload() {
+            alert("Simulación: Subida de shell.php\nArchivo: <?php system($_GET['cmd']); ?>");
+        }
+
+        function testRCE() {
+            alert("Simulación: RCE mediante eval()\nCódigo: <?php eval($_POST['code']); ?>");
+        }
+
+        function testCookieInjection() {
+            alert("Simulación: Inyección en cookie serializada\nCookie: user|O:8:\"stdClass\":1:{s:4:\"role\";s:5:\"admin\";}");
+        }
+
+        // ============================================
+        // FUNCIONALIDADES ADICIONALES
+        // ============================================
+
+        function startLiveDemo() {
+            document.getElementById('vulnCount').textContent = '15';
+            document.getElementById('buildNumber').textContent = '#' + Math.floor(Math.random() * 100);
+            document.getElementById('severityScore').textContent = '9.8';
+            document.getElementById('detectionRate').textContent = '100%';
+            
+            alert("🚀 DEMOSTRACIÓN EN VIVO INICIADA\n\n• Pipeline CI/CD activado\n• SonarQube analizando código\n• 15 vulnerabilidades detectadas\n• Servidor web en ejecución");
+        }
+
+        // ANIMACIONES Y EFECTOS
+        document.addEventListener('DOMContentLoaded', function() {
+            // Contador animado
+            const counters = document.querySelectorAll('.stat-number');
+            counters.forEach(counter => {
+                const target = +counter.getAttribute('data-target') || 100;
+                const increment = target / 100;
+                let current = 0;
+                
+                const updateCounter = () => {
+                    if (current < target) {
+                        current += increment;
+                        counter.textContent = Math.ceil(current);
+                        setTimeout(updateCounter, 20);
+                    }
+                };
+                
+                updateCounter();
+            });
+
+            // Efecto de escritura en logs
+            const logLines = document.querySelectorAll('.log-line');
+            logLines.forEach((line, index) => {
+                line.style.opacity = '0';
+                line.style.transform = 'translateX(-20px)';
+                
+                setTimeout(() => {
+                    line.style.transition = 'all 0.5s ease';
+                    line.style.opacity = '1';
+                    line.style.transform = 'translateX(0)';
+                }, index * 100);
+            });
+
+            // Efecto de partículas (simulado)
+            setInterval(() => {
+                const colors = ['#ff4757', '#2ecc71', '#3498db', '#ffa502'];
+                const color = colors[Math.floor(Math.random() * colors.length)];
+                
+                const pulse = document.createElement('div');
+                pulse.style.cssText = `
+                    position: fixed;
+                    width: 5px;
+                    height: 5px;
+                    background: ${color};
+                    border-radius: 50%;
+                    pointer-events: none;
+                    z-index: 9999;
+                    animation: particle 1s ease-out forwards;
+                `;
+                
+                pulse.style.left = Math.random() * 100 + 'vw';
+                pulse.style.top = '0px';
+                
+                document.body.appendChild(pulse);
+                
+                setTimeout(() => pulse.remove(), 1000);
+            }, 300);
+        });
+
+        // Estilo para partículas
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes particle {
+                0% { transform: translateY(0) scale(1); opacity: 1; }
+                100% { transform: translateY(100vh) scale(0); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>
