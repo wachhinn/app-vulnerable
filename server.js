@@ -17,8 +17,25 @@ app.use((req, res, next) => {
     next();
 });
 
-// Servir archivos estáticos
+// Servir archivos estáticos desde public/
 app.use(express.static('public'));
+
+// Debug: Mostrar estructura de archivos al iniciar
+console.log('\n📁 ESTRUCTURA DE ARCHIVOS:');
+console.log('📁 Directorio actual:', __dirname);
+console.log('📁 Contenido de public/:');
+if (fs.existsSync(path.join(__dirname, 'public'))) {
+    fs.readdirSync(path.join(__dirname, 'public')).forEach(file => {
+        console.log('   -', file);
+    });
+} else {
+    console.log('   ❌ Carpeta public/ no existe');
+}
+
+// Verificar si index.html existe
+const indexPath = path.join(__dirname, 'public', 'index.html');
+console.log('📄 Ruta de index.html:', indexPath);
+console.log('📄 index.html existe:', fs.existsSync(indexPath));
 
 // ====================
 // NUEVO: SERVIR ARCHIVOS PHP (VULNERABILIDAD ADICIONAL)
@@ -248,7 +265,7 @@ app.get('/api/users', (req, res) => {
         users: users,
         debug: {
             timestamp: new Date().toISOString(),
-            server: 'Sistema Bancario Vulnerable v2.0',
+            server: 'Sistema Bancario Vulnerable v3.0',
             vulnerability: 'Exposición de datos sensibles sin autenticación'
         }
     });
@@ -298,8 +315,8 @@ app.get('/debug', (req, res) => {
     res.json({
         // Información de sistema
         system: {
-            app: 'Sistema Bancario Vulnerable v2.0',
-            version: '2.0.0-semestral',
+            app: 'Sistema Bancario Vulnerable v3.0',
+            version: '3.0.0-semestral',
             nodeVersion: process.version,
             platform: process.platform,
             uptime: process.uptime(),
@@ -364,7 +381,13 @@ app.get('/debug', (req, res) => {
                 'Secrets en código',
                 'Debug info expuesta',
                 'Tokens predecibles',
-                'Ejecución PHP dinámica sin validación'
+                'Ejecución PHP dinámica sin validación',
+                'NUEVO: JWT Secret Hardcodeado',
+                'NUEVO: Path Traversal',
+                'NUEVO: CSRF sin tokens',
+                'NUEVO: Leak de Metadatos',
+                'NUEVO: Criptografía Débil',
+                'NUEVO: Open Redirect'
             ],
             recommendations: [
                 'Implementar sanitización de inputs',
@@ -412,7 +435,7 @@ app.get('/health', (req, res) => {
     res.json({
         status: 'OK',
         service: 'Sistema Bancario Vulnerable',
-        version: '2.0.0',
+        version: '3.0.0',
         timestamp: new Date().toISOString(),
         uptime: process.uptime(),
         checks: {
@@ -425,9 +448,23 @@ app.get('/health', (req, res) => {
     });
 });
 
-// Ruta principal redirige a la página
+// Ruta principal - SERVIR INDEX.HTML DESDE PUBLIC/
 app.get('/', (req, res) => {
-    res.redirect('/index.html');
+    console.log('📍 Ruta / solicitada');
+    console.log('📁 Sirviendo desde:', indexPath);
+    
+    if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+    } else {
+        res.status(404).send(`
+            <h1>Error: Archivo no encontrado</h1>
+            <p>index.html no se encuentra en: ${indexPath}</p>
+            <p>Contenido de public/:</p>
+            <ul>
+                ${fs.readdirSync(path.join(__dirname, 'public')).map(f => `<li>${f}</li>`).join('')}
+            </ul>
+        `);
+    }
 });
 
 // Ruta para mostrar menú de PHP
@@ -482,26 +519,23 @@ app.get('/php-menu', (req, res) => {
     `);
 });
 
-// Iniciar servidor
-app.listen(port, () => {
+// Manejo de errores para puerto en uso
+const server = app.listen(port, () => {
     console.log(`\n========================================`);
-    console.log(`🚀 SISTEMA BANCARIO VULNERABLE v2.0`);
+    console.log(`🚀 SISTEMA BANCARIO VULNERABLE v3.0`);
     console.log(`========================================`);
-    console.log(`🌐 URL: http://localhost:${port}`);
-    console.log(`📊 Health: http://localhost:${port}/health`);
+    console.log(`🌐 URL PRINCIPAL: http://localhost:${port}`);
+    console.log(`📊 Health Check: http://localhost:${port}/health`);
+    console.log(`🔓 Debug Info: http://localhost:${port}/debug`);
     console.log(`\n🔓 ENDPOINTS VULNERABLES:`);
-    console.log(`   • http://localhost:${port}/`);
+    console.log(`   • http://localhost:${port}/ (Nuevo diseño v3.0)`);
     console.log(`   • http://localhost:${port}/search?q=<script>alert('xss')</script>`);
     console.log(`   • http://localhost:${port}/api/users`);
-    console.log(`   • http://localhost:${port}/debug`);
     console.log(`   • http://localhost:${port}/api/user/1`);
     console.log(`\n🔓 APLICACIONES PHP INTEGRADAS:`);
     console.log(`   • http://localhost:${port}/php-menu`);
-    console.log(`   • http://localhost:${port}/php/login.php`);
-    console.log(`   • http://localhost:${port}/php/register.php`);
-    console.log(`   • http://localhost:${port}/php/profile.php`);
-    console.log(`   • http://localhost:${port}/php/search.php`);
-    console.log(`\n🎯 VULNERABILIDADES IMPLEMENTADAS:`);
+    console.log(`   • http://localhost:${port}/php/`);
+    console.log(`\n🎯 VULNERABILIDADES IMPLEMENTADAS (15+):`);
     console.log(`   1. XSS (Cross-Site Scripting)`);
     console.log(`   2. Credenciales hardcodeadas`);
     console.log(`   3. CORS demasiado permisivo`);
@@ -510,6 +544,36 @@ app.listen(port, () => {
     console.log(`   6. Información de debug expuesta`);
     console.log(`   7. Logs con datos sensibles`);
     console.log(`   8. Ejecución PHP dinámica sin validación`);
+    console.log(`   9. JWT Secret Hardcodeado`);
+    console.log(`   10. Path Traversal`);
+    console.log(`   11. CSRF sin tokens`);
+    console.log(`   12. Leak de Metadatos`);
+    console.log(`   13. Criptografía Débil (MD5)`);
+    console.log(`   14. Open Redirect`);
+    console.log(`   15. PHP SQL Injection real`);
     console.log(`\n🔍 Este sistema será analizado por SonarQube automáticamente`);
     console.log(`========================================\n`);
+});
+
+// Manejar errores de puerto en uso
+server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+        console.error(`\n❌ ERROR: Puerto ${port} ya está en uso`);
+        console.log(`💡 Solución: Detener el proceso anterior:`);
+        console.log(`   lsof -ti:${port} | xargs kill -9`);
+        console.log(`   O ejecutar: pkill -f "node server.js"`);
+        process.exit(1);
+    } else {
+        console.error(`\n❌ Error del servidor:`, err);
+        process.exit(1);
+    }
+});
+
+// Manejar cierre limpio
+process.on('SIGINT', () => {
+    console.log('\n\n🔴 Servidor deteniéndose...');
+    server.close(() => {
+        console.log('✅ Servidor detenido correctamente');
+        process.exit(0);
+    });
 });
